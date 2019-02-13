@@ -20,7 +20,7 @@ Autoscale = $Autoscale
         [[[configuration]]]
         
 
-        [[[cluster-init pbspro:default]]]
+        [[[cluster-init pbspro:default:1.0.1]]]
         Optional = true
 
     [[node master]]
@@ -30,7 +30,7 @@ Autoscale = $Autoscale
     
         [[[configuration]]]
 
-        [[[cluster-init pbspro:master]]]
+        [[[cluster-init pbspro:master:1.0.1]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $UsePublicNetwork
@@ -50,7 +50,7 @@ Autoscale = $Autoscale
 
         [[[configuration]]]
 
-        [[[cluster-init pbspro:execute]]]
+        [[[cluster-init pbspro:execute:1.0.1]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $ExecuteNodesPublic
