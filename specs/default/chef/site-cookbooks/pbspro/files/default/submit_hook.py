@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 '''
 Note - the pbs module isn't very pythonic, so you'll see things like
     value = job.Resource_List["attribute"] or 100

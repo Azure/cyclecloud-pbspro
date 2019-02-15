@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 require 'spec_helper'
 require_relative "../../cyclecloud/libraries/cycle_cloud_cluster"
 

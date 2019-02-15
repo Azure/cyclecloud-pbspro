@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 import logging_init  # import first to ensure other modules (requests) don't define logging.basicConfig first
 
 import collections

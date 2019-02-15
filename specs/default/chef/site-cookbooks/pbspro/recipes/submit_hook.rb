@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
+
 cookbook_file "#{node[:cyclecloud][:bootstrap]}/pbs/submit_hook.py" do
     source "submit_hook.py"
     mode "0755"

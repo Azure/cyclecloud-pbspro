@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 
 /opt/pbs/bin/qmgr -c 'set server managers = root@*'
 /opt/pbs/bin/qmgr -c 'set server query_other_jobs = true'

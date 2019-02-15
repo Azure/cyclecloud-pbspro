@@ -1,11 +1,6 @@
-# Cookbook Name:: pbspro
-# Recipe:: autostart
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
 #
-# Copyright 2017, Cycle Computing
-#
-# All rights reserved - Do Not Redistribute
-
-
 cookbook_file "#{node[:cyclecloud][:bootstrap]}/pbs/autostart.py" do
     source "autostart.py"
     mode "0755"

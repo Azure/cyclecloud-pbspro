@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 '''
 The purpose of this class is to call basicConfig before any other module does, specifically requests.
 '''

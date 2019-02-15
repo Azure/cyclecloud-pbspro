@@ -1,8 +1,3 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
 #
-# Cookbook Name:: pbspro
-# Recipe:: default
-#
-# Copyright 2017, Cycle Computing
-#
-# All rights reserved - Do Not Redistribute
-

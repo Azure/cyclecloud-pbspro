@@ -1,7 +1,9 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 name             "pbspro"
-maintainer       "Cycle Computing, LLC."
-maintainer_email "support@cyclecomputing.com"
-license          "Apache 2.0"
+maintainer       "Microsoft Corporation"
+license          "MIT"
 description      "Installs/Configures Open PBS Pro"
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
 version          "0.1"

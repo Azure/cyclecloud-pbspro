@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
 '''
 Utility class for parsing pbs specific expressions and dealing with logging inside and outside the pbs hook. 
 '''
