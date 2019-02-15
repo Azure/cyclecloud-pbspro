@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+if Dir.entries("<%= @torqueroot %>/addpending").size-2 != 0
+  Dir.foreach("<%= @torqueroot %>/addpending") do |fname|
+    next if fname == '.' or fname == '..'
+    f=File.open("<%= @torqueroot %>/addpending/#{fname}")
+    marray=f.readlines
+    slots=marray[0].chop
+    system("/usr/bin/qmgr -c \"create node #{fname} np=#{slots}\"")
+    if $? == 0
+      FileUtils.mv("<%= @torqueroot %>/addpending/#{fname}","<%= @torqueroot %>/addcomplete/#{fname}")
+    end
+  end
+end
