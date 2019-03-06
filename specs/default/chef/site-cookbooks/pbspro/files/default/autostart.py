@@ -383,10 +383,7 @@ class PBSAutostart:
         pbsnodes = self.driver.pbsnodes().get(None)
         existing_machines = []
         
-        def ignore_master(node):
-            return node["Template"] == "master"
-        
-        booting_instance_ids = autoscale_util.nodes_by_instance_id(self.clusters_api, nodearray_definitions, filter_func=ignore_master)
+        booting_instance_ids = autoscale_util.nodes_by_instance_id(self.clusters_api, nodearray_definitions)
         
         instance_ids_to_shutdown = Record()
         
