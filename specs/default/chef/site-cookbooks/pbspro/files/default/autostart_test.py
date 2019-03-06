@@ -853,6 +853,21 @@ class Test(unittest.TestCase):
                                         'select': '2:ncpus=2:slot_type=execute'}}]
         self._test_live(queued, MachineRequest("execute", "a2", 2, "group_id", "single"))
         
+    def test_old_style_nodes(self):
+        queued = [{'job_id': '123',
+                   'job_state': 'Q',
+                   'exec_host': 'cazlrss28/0*8',
+                   'exec_vnode': '(cazlrss28:ncpus=8)',
+                   'resource_list': {
+                       'mpiprocs': '8',
+                       'ncpus': '8',
+                       'nodect': '1',
+                       'nodes': '1:ppn8',
+                       'place': 'scatter',
+                       'select': '1:ncpus=8:mpiprocs=8',
+                       'ungrouped': 'true'}}]
+        self._test_live(queued, MachineRequest("execute", "a2", 1, "", ""))
+        
     def test_forced_assignment(self):
         queued = [{'job_id': '1',
                       'job_state': 'Q',
