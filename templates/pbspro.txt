@@ -20,7 +20,7 @@ Autoscale = $Autoscale
         [[[configuration]]]
         
 
-        [[[cluster-init pbspro:default]]]
+        [[[cluster-init pbspro:default:1.2.0]]]
         Optional = true
 
     [[node master]]
@@ -30,7 +30,7 @@ Autoscale = $Autoscale
     
         [[[configuration]]]
 
-        [[[cluster-init pbspro:master]]]
+        [[[cluster-init pbspro:master:1.2.0]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $UsePublicNetwork
@@ -39,6 +39,10 @@ Autoscale = $Autoscale
         PrivatePort = 8652
         PublicPort = 8652
 
+    [[node login]]
+    MachineType = $MasterMachineType
+        
+	[[[cluster-init pbspro:login:1.2.0]]]
 
     [[nodearray execute]]
     MachineType = $ExecuteMachineType
@@ -50,7 +54,7 @@ Autoscale = $Autoscale
 
         [[[configuration]]]
 
-        [[[cluster-init pbspro:execute]]]
+        [[[cluster-init pbspro:execute:1.2.0]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $ExecuteNodesPublic
