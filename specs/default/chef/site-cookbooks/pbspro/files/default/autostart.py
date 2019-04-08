@@ -7,7 +7,6 @@ import collections
 import json
 import os
 import sys
-import time
 import traceback
 
 from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib
@@ -31,14 +30,19 @@ class PBSAutostart:
     5) Feeds in jobs from step 3) into the Autoscaler, which performs a demand calculation of exactly which new machines are needed and which are idle.
     6) Does a soft shutdown of idle nodes - first it sets them offline - `pbsnodes -o` - then, on subsequent iterations, if no jobs running on the node it
        performs a shutdown.
+       
+       
+       To disable
+       sudo qmgr -c 'set hook autoscale enabled=false'
     
     '''
     
-    def __init__(self, driver, clusters_api, cc_config):
+    def __init__(self, driver, clusters_api, cc_config, clock=None):
         self.cc_config = cc_config
         self.disable_grouping = cc_config.get("cyclecloud.cluster.autoscale.use_node_groups", True) is not True
         self.driver = driver
         self.clusters_api = clusters_api
+        self.clock = clock or Clock()
         self.default_placement_attrs = self.cc_config.get("cyclecloud.placement_group.defaults", {"group_id": "single"})
         
     def query_jobs(self):
@@ -337,7 +341,7 @@ class PBSAutostart:
                 pbscc.info("Deleting %s" % hostname)
                 self.driver.delete_host(hostname)
         
-        now = time.time()
+        now = self.clock.time()
         
         stop_enabled = "true" == str(self.cc_config.get("cyclecloud.cluster.autoscale.stop_enabled", "true")).lower()
         
@@ -358,7 +362,10 @@ class PBSAutostart:
                 # the machine may not have converged yet, so
                 if pbsnode:
                     if "busy" in pbsnode["state"]:
-                        pbscc.error("WARNING: Falsely determined that %s is idle!" % m.hostname)
+                        if "down" in pbsnode["state"]:
+                            pbscc.warn("WARNING: %s is down but busy with jobs %s", m.hostname, pbsnode.get("jobs", []))
+                        else:
+                            pbscc.error("WARNING: Falsely determined that %s is idle!" % m.hostname)
                         continue
                     
                     last_state_change_time = pbsnode["last_state_change_time"]
@@ -369,7 +376,7 @@ class PBSAutostart:
                         # to exit.
                         last_used_time = max(last_state_change_time, last_used_time)
                     else:
-                        last_used_time = time.time()
+                        last_used_time = self.clock.time()
 
                     if now - last_used_time > idle_after_threshold:
                         pbscc.info("Setting %s offline after %s seconds" % (m.hostname, now - last_used_time))
@@ -429,29 +436,47 @@ class PBSAutostart:
             
             Otherwise convert the pbsnode into a cyclecloud.machine.Machine instance.
         '''
+        
         states = set(pbsnode["state"].split(","))
         resources = pbsnode["resources_available"]
         # host has incorrect case
         hostname = resources["vnode"]
+        
         instance_id = resources.get("instance_id", autoscale_util.uuid("instanceid"))
+        
+        def try_shutdown_pbsnode():
+            if not instance_id:
+                pbscc.error("instance_id was not defined for host %s, can not shut it down" % hostname)
+            elif "down" in states:
+                # don't immediately remove down nodes, give them time to recover from network failure.
+                remove_down_nodes = float(self.cc_config.get("pbspro.remove_down_nodes", 300))
+                since_down = self.clock.time() - pbsnode["last_state_change_time"]
+                if since_down > remove_down_nodes:
+                    pbscc.error("Removing down node %s after %.0f seconds", hostname, since_down)
+                    instance_ids_to_shutdown[instance_id] = hostname
+                    return True
+                else:
+                    omega = remove_down_nodes - since_down
+                    pbscc.warn("Not removing down node %s for another %.0f seconds", hostname, omega)
+            else:
+                instance_ids_to_shutdown[instance_id] = hostname
+                return True
+            
+            return False
         
         if "offline" in states:
             if not pbsnode.get("jobs", []):
-                pbscc.fine("%s is offline and has no jobs, can shut down" % hostname)
-                
-                if not instance_id:
-                    pbscc.error("instance_id was not defined for host %s, can not shut it down" % hostname)
-                elif "down" in states:
-                    # don't immediately remove down nodes
-                    remove_down_nodes = float(self.cc_config.get("pbspro.remove_down_nodes", 300))
-                    if time.time() - pbsnode["last_state_change_time"] > remove_down_nodes:
-                        instance_ids_to_shutdown[instance_id] = hostname
-                else:
-                    instance_ids_to_shutdown[instance_id] = hostname
+                pbscc.fine("%s is offline and has no jobs, may be able to shut down" % hostname)
+                if try_shutdown_pbsnode():
+                    return
             else:
                 pbscc.fine("Host %s is offline but still running jobs" % hostname)
         
-        # just ignore complex down nodes (down,job-busy etc)
+        # if the node is just in the down state, try to shut it down. 
+        if set(["down"]) == states and try_shutdown_pbsnode():
+            return
+        
+        # just ignore complex down nodes (down,job-busy etc) until PBS decides to change the state.
         if "down" in states:
             return
         
@@ -525,6 +550,13 @@ def compress_queued_jobs(autoscale_jobs):
         pbscc.debug("Compressed jobs matching job id %s from %d jobs down to a single job" % (first_job.name, len(job_list)))
     
     return ret
+
+
+class Clock:
+    
+    def time(self):
+        import time
+        return time.time()
 
 
 def _hook():
