@@ -84,6 +84,8 @@ class PBSAutostart:
                 # we will break it apart here as if they had split them individually.
                 
                 place = raw_job["resource_list"].get("place")
+                slot_type = raw_job["resource_list"].get("slot_type")
+
                 chunks = pbscc.parse_select(raw_job)
                 for n, chunk in enumerate(chunks):
                     # only pay the penalty of copies when we actually have multi-chunk jobs
@@ -95,6 +97,9 @@ class PBSAutostart:
                     sub_raw_job["resource_list"] = {}
                     if place:
                         sub_raw_job["resource_list"]["place"] = place
+                        
+                    if slot_type:
+                        sub_raw_job["resource_list"]["slot_type"] = slot_type
                         
                     sub_raw_job["resource_list"]["select"] = pbscc.format_select(chunk)
                     chunk["nodect"] = int(chunk["select"])
@@ -140,6 +145,7 @@ class PBSAutostart:
             
             slots_per_job = int(pbs_job.Resource_List['ncpus']) / nodect 
             slot_type = pbs_job.Resource_List["slot_type"]  # can be None, similar to {}.get("key"). It is a pbs class.
+	    pbscc.info("found slot_type %s." % slot_type)
             
             placement = pbscc.parse_place(pbs_job.Resource_List.get("place"))
                     
