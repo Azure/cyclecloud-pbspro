@@ -14,10 +14,20 @@ so you'll see guards against repr(None) (combined with the above) and
 Quick start:
     qmgr -c "create hook cycle_sub_hook"
     qmgr -c "set hook cycle_sub_hook event = queuejob"
+    qmgr -c "create hook cycle_sub_periodic_hook"
+    qmgr -c "set hook cycle_sub_periodic_hook event = periodic"
 
     # reload source / config
     qmgr -c "import hook cycle_sub_hook application/x-python default submit_hook.py"
     qmgr -c "import hook cycle_sub_hook application/x-config default submit_hook.json"
+    qmgr -c "import hook cycle_sub_periodic_hook application/x-python default submit_hook.py"
+    qmgr -c "import hook cycle_sub_periodic_hook application/x-config default submit_hook.json"
+
+Queue setup
+    qmgr -c "set queue <queue_name> resources_default.slot_type = <queue_name>"
+    qmgr -c "set queue <queue_name> resources_default.ungrouped = false"
+    qmgr -c "set queue <queue_name> default_chunk.slot_type = <queue_name>"
+    qmgr -c "set queue <queue_name> default_chunk.ungrouped = false"
 
 See PBS Professional Programmers Guide for detailed information.
 
@@ -28,6 +38,9 @@ from collections import OrderedDict
 import json
 import sys
 import traceback
+import os
+import subprocess
+import json
 
 try:
     import pbs
@@ -41,6 +54,14 @@ def validate_groupid_placement(job):
         Note we will set it to group_id if it isn't specified.
     '''
     place = repr(job.Resource_List["place"]) if job.Resource_List["place"] else ""
+    status, mj_place = get_groupid_placement(place)
+    if mj_place != None:
+        job.Resource_List["place"] = pbs.place(mj_place)
+    return status
+        
+
+def get_groupid_placement(place):
+    debug("Get groupid placement: %s" % place)
     placement_grouping = None
     for expr in place.split(":"):
         placement_grouping = None
@@ -52,16 +73,16 @@ def validate_groupid_placement(job):
         debug("The user didn't specify place=group, setting group=group_id")
         placement_grouping = "group_id"
         prefix = ":" if place else ""
-        job.Resource_List["place"] = pbs.place(place + prefix + "group=group_id")
-        
+        mj_place = place + prefix + "group=group_id"
+        return [True, mj_place]
     if placement_grouping == "group_id":
-        return True
+        return [True, None]
     else:
         debug("User specified a placement group that is not group_id - skipping.")
-        return False
+        return [False, None]
 
 
-def parse_select(job):
+def parse_select(job, select_str=None):
     # 3:ncpus=2:slot_type=something
     select_toks = get_select_expr(job).split(":")
     select_N = int(select_toks[0])
@@ -69,6 +90,7 @@ def parse_select(job):
 
 
 def get_select(job):
+    debug("Get select: %s" %job.Resource_List["select"])
     return job.Resource_List["select"]
 
 
@@ -100,16 +122,16 @@ def set_select_key(job, key, value):
         job.Resource_List["select"] = pbs.select(":".join(key_values))
 
 
-def placement_hook(hook_config):
-    event = pbs.event()
-    job = event.job
+def placement_hook(hook_config, job):
 
     if not get_select(job):
         # pbs 18 seems to treat host booleans as strings, which is causing this very annoying workaround.
-        job.Resource_List["ungrouped"] = "true"
+        #job.Resource_List["ungrouped"] = "true"
         if job.Resource_List["slot_type"]:
             job.Resource_List["slot_type"] = job.Resource_List["slot_type"]
         debug("The job doesn't have a select statement, it doesn't have any placement requirements.")
+        debug("Place a hold on the job")
+        job.Hold_Types = pbs.hold_types("so")
         return
 
     if validate_groupid_placement(job):
@@ -125,11 +147,21 @@ def placement_hook(hook_config):
 
 
 def debug(msg):
-    pbs.logmsg(pbs.LOG_DEBUG, "cycle_sub_hook - %s" % msg)
+    pbs.logmsg(pbs.EVENT_DEBUG3, "cycle_sub_hook - %s" % msg)
 
 
 def error(msg):
-    pbs.logmsg(pbs.LOG_ERROR, "cycle_sub_hook - %s" % msg)
+    pbs.logmsg(pbs.EVENT_ERROR, "cycle_sub_hook - %s" % msg)
+
+
+def run_cmd(cmd):
+    debug("Cmd: %s" % cmd)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        debug('cmd failed!\n\tstdout="%s"\n\tstderr="%s"' % (stdout, stderr))
+    return stdout, stderr
+
 
 # another non-pythonic thing - this can't be behind a __name__ == '__main__',
 # as the hook code has to be executable at the load module step.
@@ -138,7 +170,54 @@ if pbs.hook_config_filename:
     with open(pbs.hook_config_filename) as fr:
         hook_config.update(json.load(fr))
 try:
-    placement_hook(hook_config)
+    e = pbs.event()
+    if e.type == pbs.QUEUEJOB:
+        j = e.job
+        placement_hook(hook_config, j)
+    elif e.type == pbs.PERIODIC:
+        # Defined paths to PBS commands
+        qselect_cmd = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qselect')
+        qstat_cmd = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qstat')
+        qalter_cmd = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qalter')
+        qrls_cmd = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qrls')
+        # Get the jobs in an "so" hold state
+        cmd = [qselect_cmd, "-h", "so"]
+        stdout, stderr = run_cmd(cmd)
+        jobs = stdout.split()
+        debug("Jobs: %s" % jobs)
+        # Get the job information
+        if not jobs:
+            debug("No jobs to evaluate")
+            e.accept()
+        cmd = [qstat_cmd, "-f", "-F", "json"] + jobs[:25]
+        stdout, stderr = run_cmd(cmd)
+        qstat_json = json.loads(stdout)
+        jobs = qstat_json["Jobs"]
+        for key, value in jobs.iteritems():
+            # Reevaluate each held job
+            debug("Key: %s\nValue: %s" % (key, value))
+            j_place = jobs[key]["Resource_List"]["place"]
+            j_select = jobs[key]["Resource_List"]["select"]
+            # Check the groupid placement
+            mj_place = None
+            status, mj_place = get_groupid_placement(j_place)
+            # Qalter the job
+            cmd = [qalter_cmd]
+            if mj_place != None:
+                debug("New place statement: %s" % mj_place)
+                cmd.append("-lselect=%s" % j_select)
+                cmd.append("-lplace=%s" % mj_place)
+                debug("qalter the job")
+                cmd.append(key)
+                stdout, stderr = run_cmd(cmd)
+
+            # Release the hold on the job
+            cmd = [qrls_cmd, "-h", "so", key]
+            debug("Release the hold on the job")
+            stdout, stderr = run_cmd(cmd)
+            
+except SystemExit:
+    debug("Exited with SystemExit")
 except:
     error(traceback.format_exc())
     raise
