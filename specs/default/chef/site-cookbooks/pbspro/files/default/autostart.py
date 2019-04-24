@@ -10,10 +10,10 @@ import sys
 import time
 import traceback
 
-from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib
-from cyclecloud.autoscale_util import Record
-import cyclecloud.config
-from cyclecloud.job import Job, PackingStrategy
+from autoscale import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib
+from autoscale.autoscale_util import Record
+import autoscale.config
+from autoscale.job import Job, PackingStrategy
 import mockpbs
 import pbs_driver
 from pbscc import InvalidSizeExpressionError
@@ -24,10 +24,10 @@ import numbers
 
 class PBSAutostart:
     '''
-    1) Converts existing pbsnodes into cyclecloud.machine.Machine instances
+    1) Converts existing pbsnodes into autoscale.machine.Machine instances
     2) Performs a 'true up' of the machine instances reported by the autoscale lib vs the machines discovered in step 1) using InstanceId.
-    3) Converts PBS jobs into cyclecloud.job.Job instances.
-    4) Uses the current state of the cluster (steps 1 and 2) to construct a cyclecloud.autoscaler.Autoscaler instance.
+    3) Converts PBS jobs into autoscale.job.Job instances.
+    4) Uses the current state of the cluster (steps 1 and 2) to construct a autoscale.autoscaler.Autoscaler instance.
     5) Feeds in jobs from step 3) into the Autoscaler, which performs a demand calculation of exactly which new machines are needed and which are idle.
     6) Does a soft shutdown of idle nodes - first it sets them offline - `pbsnodes -o` - then, on subsequent iterations, if no jobs running on the node it
        performs a shutdown.
@@ -43,7 +43,7 @@ class PBSAutostart:
         
     def query_jobs(self):
         '''
-            Converts PBS jobs into cyclecloud.job.Job instances. It will also compress jobs that have the exact same requirements.
+            Converts PBS jobs into autoscale.job.Job instances. It will also compress jobs that have the exact same requirements.
         '''
         scheduler_config = self.driver.scheduler_config()
         scheduler_resources = [] + scheduler_config["resources"]
@@ -232,7 +232,7 @@ class PBSAutostart:
             A wrapper around the autoscale library function to parse Configuration.autoscale.* chef attributes and add
             the 'ungrouped' attribute to the machine types.
             
-            See cyclecloud.nodearrays.NodearrayDefinitions for more info.
+            See autoscale.nodearrays.NodearrayDefinitions for more info.
         '''
         nodearray_definitions = machine.fetch_nodearray_definitions(self.clusters_api, self.default_placement_attrs)
         nodearray_definitions.placement_group_optional = True
@@ -378,7 +378,7 @@ class PBSAutostart:
     
     def get_existing_machines(self, nodearray_definitions):
         '''
-            Queries pbsnodes and CycleCloud to get a sane set of cyclecloud.machine.Machine instances that represent the current state of the cluster.
+            Queries pbsnodes and CycleCloud to get a sane set of autoscale.machine.Machine instances that represent the current state of the cluster.
         '''
         pbsnodes = self.driver.pbsnodes().get(None)
         existing_machines = []
@@ -421,7 +421,7 @@ class PBSAutostart:
             If the pbsnode is offline, will handle evaluating whether the node can be shutdown. See instance_ids_to_shutdown, which
             is an OUT parameter here.
             
-            Otherwise convert the pbsnode into a cyclecloud.machine.Machine instance.
+            Otherwise convert the pbsnode into a autoscale.machine.Machine instance.
         '''
         states = set(pbsnode["state"].split(","))
         resources = pbsnode["resources_available"]
@@ -537,7 +537,7 @@ def _hook():
     else:
         pbscc.debug("No overrides exist in file %s" % pbscc.CONFIG_PATH)
     
-    cc_config = cyclecloud.config.new_provider_config(overrides=overrides)
+    cc_config = autoscale.config.new_provider_config(overrides=overrides)
     
     if len(sys.argv) < 3:
         # There are no env variables for this as far as I can tell.

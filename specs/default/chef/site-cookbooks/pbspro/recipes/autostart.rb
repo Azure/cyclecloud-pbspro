@@ -43,6 +43,18 @@ file "#{node[:cyclecloud][:bootstrap]}/pbs/autostart.json" do
   content Chef::JSONCompat.to_json_pretty(node[:pbspro][:autoscale_hook])
 end
 
+sdist_name = "autoscale-7.8.0.tar.gz"
+
+jetpack_download sdist_name do
+    project 'pbspro'
+end
+
+bash "create pbs virtualenv" do
+    code "virtualenv --system-site-packages '#{node[:cyclecloud][:bootstrap]}/pbs/venv'
+          source '#{node[:cyclecloud][:bootstrap]}/pbs/venv/bin/activate'
+          pip install '#{node[:jetpack][:downloads]}/#{sdist_name}'"
+end
+
 bash "import autoscale hook" do
   code <<-EOH
     set -e
