@@ -138,6 +138,11 @@ def placement_hook(hook_config, job):
         job.Hold_Types = pbs.hold_types("so")
         return
 
+    debug("The job has a select statement.")
+    debug("Place a hold on the job")
+    job.Hold_Types = pbs.hold_types("so")
+    return
+    '''
     if validate_groupid_placement(job):
         _, select_dict = parse_select(job)
         
@@ -148,7 +153,7 @@ def placement_hook(hook_config, job):
         if slot_type:
             set_select_key(job, "slot_type", slot_type)
             debug("Using the grouped slot_type as a resource (%s)." % slot_type)
-
+    '''
 
 def debug(msg):
     pbs.logmsg(pbs.EVENT_DEBUG3, "cycle_sub_hook - %s" % msg)
@@ -215,6 +220,19 @@ try:
                 if "resources_default" in qstat_Qf_json["Queue"][j_queue]:
                     if "place" in qstat_Qf_json["Queue"][j_queue]["resources_default"]:
                         mj_place = qstat_Qf_json["Queue"][j_queue]["resources_default"]["place"]
+            # Double checking group=group_id setting:
+            placement_grouping = None
+            for expr in mj_place.split(":"):
+                placement_grouping = None
+                if "=" in expr:
+                    key, value = [x.lower().strip() for x in expr.split("=", 1)]
+                    if key == "group":
+                        placement_grouping = value
+            if placement_grouping is None:
+                debug("The user didn't specify place=group, setting group=group_id")
+                placement_grouping = "group_id"
+                prefix = ":" if mj_place else ""
+                mj_place = mj_place + prefix + "group=group_id"
             # Qalter the job
             cmd = [qalter_cmd]
             if mj_place != None:
