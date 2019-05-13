@@ -18,9 +18,8 @@ Autoscale = $Autoscale
     KeyPairLocation = ~/.ssh/cyclecloud.pem
     
         [[[configuration]]]
-        
 
-        [[[cluster-init pbspro:default:1.2.0]]]
+        [[[cluster-init pbspro:default:1.3.0]]]
         Optional = true
 
     [[node master]]
@@ -30,7 +29,7 @@ Autoscale = $Autoscale
     
         [[[configuration]]]
 
-        [[[cluster-init pbspro:master:1.2.0]]]
+        [[[cluster-init pbspro:master:1.3.0]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $UsePublicNetwork
@@ -42,7 +41,7 @@ Autoscale = $Autoscale
     [[node login]]
     MachineType = $MasterMachineType
         
-	[[[cluster-init pbspro:login:1.2.0]]]
+	[[[cluster-init pbspro:login:1.3.0]]]
 
     [[nodearray execute]]
     MachineType = $ExecuteMachineType
@@ -54,7 +53,7 @@ Autoscale = $Autoscale
 
         [[[configuration]]]
 
-        [[[cluster-init pbspro:execute:1.2.0]]]
+        [[[cluster-init pbspro:execute:1.3.0]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $ExecuteNodesPublic

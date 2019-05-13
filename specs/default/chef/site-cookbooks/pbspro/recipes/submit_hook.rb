@@ -33,10 +33,14 @@ bash "import submit hook" do
     code <<-EOH
     /opt/pbs/bin/qmgr -c "create hook cycle_sub_hook" 2>/dev/null || true
     /opt/pbs/bin/qmgr -c "set hook cycle_sub_hook event = queuejob" 2>/dev/null || true
+    /opt/pbs/bin/qmgr -c "create hook cycle_sub_periodic_hook" 2>/dev/null || true
+    /opt/pbs/bin/qmgr -c "set hook cycle_sub_periodic_hook event = periodic" 2>/dev/null || true
     
     set -e
     /opt/pbs/bin/qmgr -c "import hook cycle_sub_hook application/x-python default #{node[:cyclecloud][:bootstrap]}/pbs/submit_hook.py"
     /opt/pbs/bin/qmgr -c "import hook cycle_sub_hook application/x-config default #{node[:cyclecloud][:bootstrap]}/pbs/submit_hook.json"
+    /opt/pbs/bin/qmgr -c "import hook cycle_sub_periodic_hook application/x-python default #{node[:cyclecloud][:bootstrap]}/pbs/submit_hook.py"
+    /opt/pbs/bin/qmgr -c "import hook cycle_sub_periodic_hook application/x-config default #{node[:cyclecloud][:bootstrap]}/pbs/submit_hook.json"
         touch #{node[:cyclecloud][:bootstrap]}/pbs/submithook.imported
     EOH
     creates "#{node[:cyclecloud][:bootstrap]}/pbs/submithook.imported"
