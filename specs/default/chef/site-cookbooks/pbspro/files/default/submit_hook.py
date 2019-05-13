@@ -220,32 +220,40 @@ try:
                 if "resources_default" in qstat_Qf_json["Queue"][j_queue]:
                     if "place" in qstat_Qf_json["Queue"][j_queue]["resources_default"]:
                         mj_place = qstat_Qf_json["Queue"][j_queue]["resources_default"]["place"]
+	    pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - %s" % mj_place)
             # Double checking group=group_id setting:
             placement_grouping = None
             for expr in mj_place.split(":"):
                 placement_grouping = None
                 if "=" in expr:
-                    key, value = [x.lower().strip() for x in expr.split("=", 1)]
-                    if key == "group":
+                    placekey, value = [x.lower().strip() for x in expr.split("=", 2)]
+                    if placekey == "group":
                         placement_grouping = value
             if placement_grouping is None:
                 debug("The user didn't specify place=group, setting group=group_id")
+	        pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - %s - The user didn't specify place=group, setting group=group_id" % mj_place)
                 placement_grouping = "group_id"
                 prefix = ":" if mj_place else ""
                 mj_place = mj_place + prefix + "group=group_id"
+	    pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - after update %s" % mj_place)
             # Qalter the job
             cmd = [qalter_cmd]
             if mj_place != None:
                 debug("New place statement: %s" % mj_place)
+	        pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - before qalter %s" % j_select)
+	        pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - before qalter %s" % mj_place)
                 cmd.append("-lselect=%s" % j_select)
                 cmd.append("-lplace=%s" % mj_place)
                 debug("qalter the job")
                 cmd.append(key)
+	        pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - full cmd %s" % cmd)
                 stdout, stderr = run_cmd(cmd)
+	        pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - stdout %s" % stdout)
 
             # Release the hold on the job
             cmd = [qrls_cmd, "-h", "so", key]
             debug("Release the hold on the job")
+	    pbs.logmsg(pbs.LOG_DEBUG, "cycle_periodic_hook_place - releasing %s" % key)
             stdout, stderr = run_cmd(cmd)
             
 except SystemExit:
