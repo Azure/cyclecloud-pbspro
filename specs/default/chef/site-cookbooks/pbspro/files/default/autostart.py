@@ -9,7 +9,8 @@ import os
 import sys
 import traceback
 
-from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib
+from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib,\
+    nodearrays
 from cyclecloud.autoscale_util import Record
 import cyclecloud.config
 from cyclecloud.job import Job, PackingStrategy
@@ -149,7 +150,7 @@ class PBSAutostart:
             
             slots_per_job = int(pbs_job.Resource_List['ncpus']) / nodect 
             slot_type = pbs_job.Resource_List["slot_type"]  # can be None, similar to {}.get("key"). It is a pbs class.
-	    pbscc.info("found slot_type %s." % slot_type)
+            pbscc.info("found slot_type %s." % slot_type)
             
             placement = pbscc.parse_place(pbs_job.Resource_List.get("place"))
                     
@@ -246,8 +247,13 @@ class PBSAutostart:
         '''
         nodearray_definitions = machine.fetch_nodearray_definitions(self.clusters_api, self.default_placement_attrs)
         nodearray_definitions.placement_group_optional = True
+
+        filtered_nodearray_definitions = nodearrays.NodearrayDefinitions()
         
         for machinetype in nodearray_definitions:
+            if machinetype.get("disabled", False):
+                continue
+                
             # ensure that any custom attribute the user specified, like disk = 100G, gets parsed correctly
             for key, value in machinetype.iteritems():
                 try:
@@ -258,11 +264,12 @@ class PBSAutostart:
             # kludge: there is a strange bug where ungrouped is showing up as a string and not a boolean.
             if not machinetype.get("group_id"):
                 machinetype["ungrouped"] = "true"
+                filtered_nodearray_definitions.add_machinetype(machinetype)
             else:
                 machinetype["ungrouped"] = "false"
-                machinetype["group_id"] = str(autoscale_util.uuid("ungrouped-"))
-                
-        return nodearray_definitions
+                filtered_nodearray_definitions.add_machinetype_with_placement_group(machinetype.get("group_id"), machinetype)
+            
+        return filtered_nodearray_definitions
                 
     def autoscale(self):
         '''
@@ -593,4 +600,7 @@ def _hook():
 
 # Since this is invoked from a hook, __name__ is not "__main__", so we rely on a special env variable. Otherwise unit testing would be impossible.
 if os.getenv("AUTOSTART_HOOK"):
-    _hook()
+    try:
+        _hook()
+    except:
+        pbscc.error(traceback.format_exc())

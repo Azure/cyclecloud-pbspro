@@ -21,11 +21,15 @@ placement_group = node[:cyclecloud][:node][:placement_group] || nil
 is_node_grouped = node[:pbspro][:is_grouped]
 instance_id = node[:cyclecloud][:instance][:id]
 
-custom_resources = node[:autoscale] || Hash.new {}
+custom_resources = Hash.new {}
+if node[:autoscale] then
+    custom_resources = node[:autoscale].to_h
+end
 
 if custom_resources.empty? || custom_resources.nil? then
 	set_custom_resources = "true"
 else
+    custom_resources.delete("disabled")
 	set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
 end
 

@@ -10,6 +10,16 @@ from copy import deepcopy
 LOG_DEBUG = logging.DEBUG
 LOG_WARNING = logging.WARN
 LOG_ERROR = logging.ERROR
+
+QUEUEJOB = "QUEUEJOB"
+PERIODIC = "PERIODIC"
+EVENT_ERROR = logging.ERROR
+
+
+def hold_types(h):
+    return h
+
+
 # feel free to change as needed
 hook_config_filename = "hook_config_file.json"
 
