@@ -20,7 +20,7 @@ Autoscale = $Autoscale
         [[[configuration]]]
         
 
-        [[[cluster-init pbspro:default]]]
+        [[[cluster-init cyclecloud/pbspro:default]]]
         Optional = true
 
     [[node master]]
@@ -30,7 +30,7 @@ Autoscale = $Autoscale
     
         [[[configuration]]]
 
-        [[[cluster-init pbspro:master]]]
+        [[[cluster-init cyclecloud/pbspro:master]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $UsePublicNetwork
@@ -50,7 +50,7 @@ Autoscale = $Autoscale
 
         [[[configuration]]]
 
-        [[[cluster-init pbspro:execute]]]
+        [[[cluster-init cyclecloud/pbspro:execute]]]
 
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $ExecuteNodesPublic
