@@ -10,16 +10,6 @@ from copy import deepcopy
 LOG_DEBUG = logging.DEBUG
 LOG_WARNING = logging.WARN
 LOG_ERROR = logging.ERROR
-
-QUEUEJOB = "QUEUEJOB"
-PERIODIC = "PERIODIC"
-EVENT_ERROR = logging.ERROR
-
-
-def hold_types(h):
-    return h
-
-
 # feel free to change as needed
 hook_config_filename = "hook_config_file.json"
 
@@ -126,6 +116,13 @@ def mock_job(raw_job):
    
     if job["array"]:
         job["array_state_count"] = raw_job.pop("array_state_count")
+    
+    if "nodes" in job.Resource_List:
+        if "ppn" in raw_job and "ncpus" not in raw_job:
+            raw_job["resource_list"]["ncpus"] = raw_job["ppn"]
+        job["resource_list"]["nodect"] = int(raw_job.pop("nodes"))
+        job["resource_list"]["place"] = "scatter"
+        job["resource_list"]["select"] = "{n}:ncpus={n}:mpiprocs={n}".format(n=job["resource_list"]["nodect"])
     
     # remaining things are assumed to be resources
     return job

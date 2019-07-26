@@ -7,7 +7,6 @@ Utility class for parsing pbs specific expressions and dealing with logging insi
 import numbers
 import os
 import collections
-import logging
 try:
     import pbs
     # there is no info in the actual pbs implementation.
@@ -183,57 +182,39 @@ def set_application_name(value):
     __application_name = value
 
 
-def __log(level, msg, interp=None):
-    interp = interp or ()
+def __log(level, msg):
     if __log_level <= level:
         pbs_msg = "%s:%s - %s" % (__application_name, __log_level_names[__log_level], msg)
-        pylog_msg = msg
-        try:
-            pbs_msg = pbs_msg % interp
-            pylog_msg = msg % interp
-        except TypeError as e:
-            pbs.logmsg(__WARN, str(e))
-            
         if level >= __ERROR:
             pbs_level = pbs.LOG_ERROR
-            pylog_level = logging.ERROR
         elif level == __WARN:
             pbs_level = pbs.LOG_WARNING
-            pylog_level = logging.WARN
         elif level == __INFO:
             pbs_level = pbs_LOG_INFO
-            pylog_level = logging.INFO
         else:
             pbs_level = pbs.LOG_DEBUG
-            pylog_level = logging.DEBUG
         pbs.logmsg(pbs_level, pbs_msg)
-        logging.log(pylog_level, pylog_msg)
 
 
 def is_fine():
     return __log_level == __FINE
 
 
-def fine(msg, *interp):
-    interp = interp or ()
-    __log(__FINE, msg, interp)
+def fine(msg):
+    __log(__FINE, msg)
 
 
-def debug(msg, *interp):
-    interp = interp or ()
-    __log(__DEBUG, msg, interp)
+def debug(msg):
+    __log(__DEBUG, msg)
 
 
-def info(msg, *interp):
-    interp = interp or ()
-    __log(__INFO, msg, interp)
+def info(msg):
+    __log(__INFO, msg)
     
 
-def warn(msg, *interp):
-    interp = interp or ()
-    __log(__WARN, msg, interp)
+def warn(msg):
+    __log(__WARN, msg)
 
 
-def error(msg, *interp):
-    interp = interp or ()
-    __log(__WARN, msg, interp)
+def error(msg):
+    __log(__WARN, msg)

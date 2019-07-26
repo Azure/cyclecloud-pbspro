@@ -7,10 +7,10 @@ import collections
 import json
 import os
 import sys
+import time
 import traceback
 
-from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib,\
-    nodearrays
+from cyclecloud import machine, clustersapi, autoscale_util, autoscaler as autoscalerlib
 from cyclecloud.autoscale_util import Record
 import cyclecloud.config
 from cyclecloud.job import Job, PackingStrategy
@@ -31,19 +31,14 @@ class PBSAutostart:
     5) Feeds in jobs from step 3) into the Autoscaler, which performs a demand calculation of exactly which new machines are needed and which are idle.
     6) Does a soft shutdown of idle nodes - first it sets them offline - `pbsnodes -o` - then, on subsequent iterations, if no jobs running on the node it
        performs a shutdown.
-       
-       
-       To disable
-       sudo qmgr -c 'set hook autoscale enabled=false'
     
     '''
     
-    def __init__(self, driver, clusters_api, cc_config, clock=None):
+    def __init__(self, driver, clusters_api, cc_config):
         self.cc_config = cc_config
         self.disable_grouping = cc_config.get("cyclecloud.cluster.autoscale.use_node_groups", True) is not True
         self.driver = driver
         self.clusters_api = clusters_api
-        self.clock = clock or Clock()
         self.default_placement_attrs = self.cc_config.get("cyclecloud.placement_group.defaults", {"group_id": "single"})
         
     def query_jobs(self):
@@ -89,8 +84,6 @@ class PBSAutostart:
                 # we will break it apart here as if they had split them individually.
                 
                 place = raw_job["resource_list"].get("place")
-                slot_type = raw_job["resource_list"].get("slot_type")
-
                 chunks = pbscc.parse_select(raw_job)
                 for n, chunk in enumerate(chunks):
                     # only pay the penalty of copies when we actually have multi-chunk jobs
@@ -102,9 +95,6 @@ class PBSAutostart:
                     sub_raw_job["resource_list"] = {}
                     if place:
                         sub_raw_job["resource_list"]["place"] = place
-                        
-                    if slot_type:
-                        sub_raw_job["resource_list"]["slot_type"] = slot_type
                         
                     sub_raw_job["resource_list"]["select"] = pbscc.format_select(chunk)
                     chunk["nodect"] = int(chunk["select"])
@@ -150,7 +140,6 @@ class PBSAutostart:
             
             slots_per_job = int(pbs_job.Resource_List['ncpus']) / nodect 
             slot_type = pbs_job.Resource_List["slot_type"]  # can be None, similar to {}.get("key"). It is a pbs class.
-            pbscc.info("found slot_type %s." % slot_type)
             
             placement = pbscc.parse_place(pbs_job.Resource_List.get("place"))
                     
@@ -247,13 +236,8 @@ class PBSAutostart:
         '''
         nodearray_definitions = machine.fetch_nodearray_definitions(self.clusters_api, self.default_placement_attrs)
         nodearray_definitions.placement_group_optional = True
-
-        filtered_nodearray_definitions = nodearrays.NodearrayDefinitions()
         
         for machinetype in nodearray_definitions:
-            if machinetype.get("disabled", False):
-                continue
-                
             # ensure that any custom attribute the user specified, like disk = 100G, gets parsed correctly
             for key, value in machinetype.iteritems():
                 try:
@@ -264,12 +248,11 @@ class PBSAutostart:
             # kludge: there is a strange bug where ungrouped is showing up as a string and not a boolean.
             if not machinetype.get("group_id"):
                 machinetype["ungrouped"] = "true"
-                filtered_nodearray_definitions.add_machinetype(machinetype)
             else:
                 machinetype["ungrouped"] = "false"
-                filtered_nodearray_definitions.add_machinetype_with_placement_group(machinetype.get("group_id"), machinetype)
-            
-        return filtered_nodearray_definitions
+                machinetype["group_id"] = str(autoscale_util.uuid("ungrouped-"))
+                
+        return nodearray_definitions
                 
     def autoscale(self):
         '''
@@ -348,7 +331,7 @@ class PBSAutostart:
                 pbscc.info("Deleting %s" % hostname)
                 self.driver.delete_host(hostname)
         
-        now = self.clock.time()
+        now = time.time()
         
         stop_enabled = "true" == str(self.cc_config.get("cyclecloud.cluster.autoscale.stop_enabled", "true")).lower()
         
@@ -369,10 +352,7 @@ class PBSAutostart:
                 # the machine may not have converged yet, so
                 if pbsnode:
                     if "busy" in pbsnode["state"]:
-                        if "down" in pbsnode["state"]:
-                            pbscc.warn("WARNING: %s is down but busy with jobs %s", m.hostname, pbsnode.get("jobs", []))
-                        else:
-                            pbscc.error("WARNING: Falsely determined that %s is idle!" % m.hostname)
+                        pbscc.error("WARNING: Falsely determined that %s is idle!" % m.hostname)
                         continue
                     
                     last_state_change_time = pbsnode["last_state_change_time"]
@@ -383,7 +363,7 @@ class PBSAutostart:
                         # to exit.
                         last_used_time = max(last_state_change_time, last_used_time)
                     else:
-                        last_used_time = self.clock.time()
+                        last_used_time = time.time()
 
                     if now - last_used_time > idle_after_threshold:
                         pbscc.info("Setting %s offline after %s seconds" % (m.hostname, now - last_used_time))
@@ -403,7 +383,10 @@ class PBSAutostart:
         pbsnodes = self.driver.pbsnodes().get(None)
         existing_machines = []
         
-        booting_instance_ids = autoscale_util.nodes_by_instance_id(self.clusters_api, nodearray_definitions)
+        def ignore_master(node):
+            return node["Template"] == "master"
+        
+        booting_instance_ids = autoscale_util.nodes_by_instance_id(self.clusters_api, nodearray_definitions, filter_func=ignore_master)
         
         instance_ids_to_shutdown = Record()
         
@@ -443,47 +426,29 @@ class PBSAutostart:
             
             Otherwise convert the pbsnode into a cyclecloud.machine.Machine instance.
         '''
-        
         states = set(pbsnode["state"].split(","))
         resources = pbsnode["resources_available"]
         # host has incorrect case
         hostname = resources["vnode"]
-        
         instance_id = resources.get("instance_id", autoscale_util.uuid("instanceid"))
-        
-        def try_shutdown_pbsnode():
-            if not instance_id:
-                pbscc.error("instance_id was not defined for host %s, can not shut it down" % hostname)
-            elif "down" in states:
-                # don't immediately remove down nodes, give them time to recover from network failure.
-                remove_down_nodes = float(self.cc_config.get("pbspro.remove_down_nodes", 300))
-                since_down = self.clock.time() - pbsnode["last_state_change_time"]
-                if since_down > remove_down_nodes:
-                    pbscc.error("Removing down node %s after %.0f seconds", hostname, since_down)
-                    instance_ids_to_shutdown[instance_id] = hostname
-                    return True
-                else:
-                    omega = remove_down_nodes - since_down
-                    pbscc.warn("Not removing down node %s for another %.0f seconds", hostname, omega)
-            else:
-                instance_ids_to_shutdown[instance_id] = hostname
-                return True
-            
-            return False
         
         if "offline" in states:
             if not pbsnode.get("jobs", []):
-                pbscc.fine("%s is offline and has no jobs, may be able to shut down" % hostname)
-                if try_shutdown_pbsnode():
-                    return
+                pbscc.fine("%s is offline and has no jobs, can shut down" % hostname)
+                
+                if not instance_id:
+                    pbscc.error("instance_id was not defined for host %s, can not shut it down" % hostname)
+                elif "down" in states:
+                    # don't immediately remove down nodes
+                    remove_down_nodes = float(self.cc_config.get("pbspro.remove_down_nodes", 300))
+                    if time.time() - pbsnode["last_state_change_time"] > remove_down_nodes:
+                        instance_ids_to_shutdown[instance_id] = hostname
+                else:
+                    instance_ids_to_shutdown[instance_id] = hostname
             else:
                 pbscc.fine("Host %s is offline but still running jobs" % hostname)
         
-        # if the node is just in the down state, try to shut it down. 
-        if set(["down"]) == states and try_shutdown_pbsnode():
-            return
-        
-        # just ignore complex down nodes (down,job-busy etc) until PBS decides to change the state.
+        # just ignore complex down nodes (down,job-busy etc)
         if "down" in states:
             return
         
@@ -559,13 +524,6 @@ def compress_queued_jobs(autoscale_jobs):
     return ret
 
 
-class Clock:
-    
-    def time(self):
-        import time
-        return time.time()
-
-
 def _hook():
     pbscc.set_application_name("cycle_autoscale")
     # allow local overrides of jetpack.config or allow non-jetpack masters to define the complete set of settings.
@@ -600,7 +558,4 @@ def _hook():
 
 # Since this is invoked from a hook, __name__ is not "__main__", so we rely on a special env variable. Otherwise unit testing would be impossible.
 if os.getenv("AUTOSTART_HOOK"):
-    try:
-        _hook()
-    except:
-        pbscc.error(traceback.format_exc())
+    _hook()
