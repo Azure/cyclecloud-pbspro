@@ -2,11 +2,12 @@
 # Licensed under the MIT License.
 #
 import unittest
-from tryme import retry, Stop, Again
 import os
-import helper
+import time
 import logging
+import helper
 import jetpack
+from tryme import retry, Stop, Again
 
 jetpack.util.setup_logging()
 
@@ -79,8 +80,9 @@ class TestSubmit(unittest.TestCase):
 
     def test_simple(self):
         sleep_script = write_sleep_script()
-        output_file = self.userhome + '/sleep.out'
-        err_file = self.userhome + '/sleep.err'
+        jobtime = str(int(time.time()))
+        output_file = '%s/sleep.%s.out' % (self.userhome, jobtime)
+        err_file = '%s/sleep.%s.err' % (self.userhome, jobtime)
         helper.sudo_check_output(['/opt/pbs/bin/qsub', '-o',
                                   output_file, '-e', err_file, sleep_script],
                                  CLUSTER_USER, cwd=self.userhome)

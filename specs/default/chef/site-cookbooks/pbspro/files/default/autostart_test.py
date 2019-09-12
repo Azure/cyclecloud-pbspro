@@ -6,13 +6,13 @@ import numbers
 import unittest
 
 from autostart import PBSAutostart
-from cyclecloud import machine, autoscale_util
-from cyclecloud.job import Job
-from cyclecloud.machine import MachineRequest
-from cyclecloud.autoscale_util import Record
+from autoscale import machine, autoscale_util
+from autoscale.job import Job
+from autoscale.machine import MachineRequest
+from autoscale.autoscale_util import Record
 import time
 from itertools import chain
-from cyclecloud.config import InstanceConfig
+from autoscale.config import InstanceConfig
 import random
 import pbscc
 from pbscc import InvalidSizeExpressionError
