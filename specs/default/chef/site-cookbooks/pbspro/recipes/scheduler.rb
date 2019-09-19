@@ -22,6 +22,15 @@ directory "#{node[:cyclecloud][:bootstrap]}/pbs" do
   action :create
 end
 
+# Create parent directory structure
+directory '/var/spool/pbs'
+
+# Create sched_priv directory before attempting
+# to write config to that location.
+directory '/var/spool/pbs/sched_priv' do
+  mode 0o750
+end
+
 cookbook_file "/var/spool/pbs/doqmgr.sh" do
   source "doqmgr.sh"
   mode "0755"
