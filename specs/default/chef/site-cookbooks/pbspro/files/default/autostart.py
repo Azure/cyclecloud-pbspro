@@ -360,6 +360,10 @@ class PBSAutostart:
             idle_after_threshold = float(self.cc_config.get("cyclecloud.cluster.autoscale.idle_time_after_jobs", 300))
         
             for m in idle_machines:
+                if m.get_attr("keep_alive", False):
+                    pbscc.debug("Ignoring %s for scaledown because KeepAlive=true", m.hostname)
+                    continue
+                
                 if m.get_attr("instance_id", "") not in booting_instance_ids:
                     pbscc.debug("Could not find instance id in CycleCloud %s" % m.get_attr("instance_id", ""))
                     continue
@@ -410,6 +414,15 @@ class PBSAutostart:
         nodes_by_instance_id = Record()
         
         for pbsnode in pbsnodes.values():
+            instance_id = pbsnode["resources_available"].get("instance_id", "")
+            # use this opportunity to set some things that can change during the runtime (keepalive) or are not always set
+            # by previous versions (machinetype/nodearray)
+            if instance_id and booting_instance_ids.get(instance_id):
+                node = booting_instance_ids.get(instance_id)
+                pbsnode["resources_available"]["keep_alive"] = node.get("KeepAlive", False)
+                pbsnode["resources_available"]["machinetype"] = pbsnode["resources_available"].get("machinetype") or node.get("MachineType")
+                pbsnode["resources_available"]["nodearray"] = pbsnode["resources_available"].get("nodearray") or node.get("Template")
+                
             inst = self.process_pbsnode(pbsnode, instance_ids_to_shutdown, nodearray_definitions)
             if not inst:
                 continue
@@ -430,7 +443,7 @@ class PBSAutostart:
             except KeyError as e:
                 raise ValueError("machine is %s, key is %s, rest is %s" % (nodearray_name, str(e), nodearray_definitions))
             
-            inst = machine.new_machine_instance(machinetype, hostname=node.get("hostname"), instance_id=node.get("InstanceId"), group_id=node.get("placementGroupId"))
+            inst = machine.new_machine_instance(machinetype, hostname=node.get("hostname"), instance_id=node.get("InstanceId"), group_id=node.get("placementGroupId"), keep_alive=node.get("KeepAlive", False))
             existing_machines.append(inst)
             nodes_by_instance_id[instance_id] = node
         
