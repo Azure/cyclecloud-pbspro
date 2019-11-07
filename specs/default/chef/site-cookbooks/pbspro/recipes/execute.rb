@@ -26,13 +26,6 @@ if node[:autoscale] then
     custom_resources = node[:autoscale].to_h
 end
 
-if custom_resources.empty? || custom_resources.nil? then
-	set_custom_resources = "true"
-else
-    custom_resources.delete("disabled")
-	set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
-end
-
 schedint = cluster.scheduler
 slots = node[:pbspro][:slots] || nil
 
@@ -107,6 +100,17 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
   end
  
   set_instance_id = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.instance_id=#{instance_id}'"
+
+  if custom_resources.empty? || custom_resources.nil? then
+    set_custom_resources = "true"
+  else
+    custom_resources.delete("disabled")
+    if custom_resources.empty? then
+        set_custom_resources = "true"
+    else    
+        set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
+    end
+  end
    
   execute "set-node-slot_type" do
     command lazy {<<-EOS
