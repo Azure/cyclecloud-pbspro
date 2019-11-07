@@ -201,7 +201,7 @@ class PBSAutostart:
             if group_jobs and placement.get("grouping"): 
                 autoscale_job['grouped'] = True
                 autoscale_job["nodes"] *= array_count
-                autoscale_job.placeby_value = "single"
+                autoscale_job.placeby_value = pbs_job.Resource_List.get("group_id") or None
             elif is_array:
                 autoscale_job["nodes"] *= array_count
 
