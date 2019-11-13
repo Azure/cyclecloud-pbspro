@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 #
 import logging_init
-import numbers
 import unittest
 
 from autostart import PBSAutostart
@@ -22,7 +21,7 @@ class MockDriver:
     def __init__(self, queues=None, jobs=None, hosts=None):
         self._queues = queues or ["workq"]
         self._jobs = jobs or {}
-        assert isinstance(jobs, dict)
+        assert isinstance(self._jobs, dict)
         self._hosts = hosts or []
         self._declared_resources = {"resources": ["ncpus", "mem", "arch", "host", "vnode", "aoe", "slot_type", 
                                                   "group_id", "ungrouped", "instance_id", "ipv4", "disk", "scratch",
@@ -158,6 +157,14 @@ def _nodearray_definitions(*machinetypes):
     cluster_status["nodearrays"] = ret.values()
     return cluster_status
 
+
+class MockClock:
+    def __init__(self, now=0):
+        self.now = now
+        
+    def time(self):
+        return self.now
+    
     
 class PBSQ:
     
@@ -337,14 +344,15 @@ class Test(unittest.TestCase):
     
     def _host(self, machinetype, hostname, **resources):
         machinetype = machinetype or {}
-        host = {"state": "idle",
+        host = {"state": resources.pop("state", "idle"),
+                "jobs": resources.pop("jobs", []),
                 "resources_assigned": {},
                 "resources_available": {"vnode": hostname,
                                         "host": hostname,
                                         "machinetype": machinetype.get("name", "")}}
         host["resources_available"].update(machinetype)
-        host["last_state_change_time"] = time.time()
-        host.update(resources)
+        host["last_state_change_time"] = resources.get("last_state_change_time") or time.time()
+        host["resources_available"].update(resources)
         return host
     
     def test_pbsuserguide_ex1(self):
@@ -853,6 +861,21 @@ class Test(unittest.TestCase):
                                         'select': '2:ncpus=2:slot_type=execute'}}]
         self._test_live(queued, MachineRequest("execute", "a2", 2, "group_id", "single"))
         
+    def test_old_style_nodes(self):
+        queued = [{'job_id': '123',
+                   'job_state': 'Q',
+                   'exec_host': 'cazlrss28/0*8',
+                   'exec_vnode': '(cazlrss28:ncpus=8)',
+                   'resource_list': {
+                       'mpiprocs': '8',
+                       'ncpus': '8',
+                       'nodect': '1',
+                       'nodes': '1:ppn8',
+                       'place': 'scatter',
+                       'select': '1:ncpus=8:mpiprocs=8',
+                       'ungrouped': 'true'}}]
+        self._test_live(queued, MachineRequest("execute", "a2", 1, "", ""))
+        
     def test_forced_assignment(self):
         queued = [{'job_id': '1',
                       'job_state': 'Q',
@@ -1124,7 +1147,64 @@ class Test(unittest.TestCase):
         run_test(num_idle=0, num_request=4)
         # second time they are already booting
         assert len(run_test(num_idle=0, num_request=0)) == 5
-
+        
+    def test_shutdown_down_nodes(self):
+        '''
+        Create three nodes - one that is up and busy, one that is down but presumed busy, and one that is just down.
+        Test that the down node goes away after 100 seconds but that the 'down,job-busy' node does not until it is in the 'down' state.
+        '''
+        mt = machine.new_machinetype("execute", "a2", 4, 128, 100, availableCount=1000 * 1000 * 100)
+        cc_config = InstanceConfig({}, {})
+        cc_config.set("pbspro.remove_down_nodes", "100")
+        clock = MockClock(time.time())
+        
+        q = PBSQ()
+        # create one job for an up and busy node, and one for a down yet busy node 
+        q.qsub(job_id="1")
+        q.qsub(job_id="2")
+        q.set_running("1", "(jobbusy:ncpus=1)")
+        q.set_running("2", "(downjobbusy:ncpus=1)")
+        
+        cluster_def = _nodearray_definitions(mt)
+        busy = self._host(mt, hostname="jobbusy", host="jobbusy", state="job-busy", instance_id="i123", jobs=["1"])
+        down = self._host(mt, hostname="down", host="down", state="down", instance_id="i234", last_state_change_time=clock.time() - 99)
+        # make it so this state is very old - we are asserting that it isn't treated as idle by PBS autostart (though it is returned as isdle by the autoscaler) 
+        downjobbusy = self._host(mt, hostname="downjobbusy", host="downjobbusy", state="down,job-busy", instance_id="i345", jobs=["2"], last_state_change_time=clock.time() - 10000)
+        
+        driver = MockDriver(jobs=q.queues, hosts=[busy, down, downjobbusy])
+        
+        cluster = MockClustersAPI(cluster_def, nodes=[{"MachineType": "a2", "InstanceId": "i123", "Template": "execute", "hostname": "jobbusy"},
+                                                      {"MachineType": "a2", "InstanceId": "i234", "Template": "execute", "hostname": "down"},
+                                                      {"MachineType": "a2", "InstanceId": "i345", "Template": "execute", "hostname": "downjobbusy"}])
+        
+        # we haven't hit the timeout threshold
+        autoscale_requests, idle_machines, all_machines = PBSAutostart(driver, cluster, cc_config, clock=clock).autoscale()
+        self.assertEquals([], autoscale_requests)
+        self.assertEquals(set(["down", "jobbusy", "downjobbusy"]), set([m.hostname for m in all_machines]))
+        self.assertEquals(["down"], [m.hostname for m in idle_machines])
+        
+        # we have hit the timeout threshold, though autoscale will still return the idle_machine here for testing.
+        clock.now += 2
+        autoscale_requests, idle_machines, all_machines = PBSAutostart(driver, cluster, cc_config, clock=clock).autoscale()
+        self.assertEquals([], autoscale_requests)
+        self.assertEquals(set(["down", "jobbusy", "downjobbusy"]), set([m.hostname for m in all_machines]))
+        self.assertEquals(["down"], [m.hostname for m in idle_machines])
+        
+        # rerun autoscale and the down node is gone.
+        autoscale_requests, idle_machines, all_machines = PBSAutostart(driver, cluster, cc_config, clock=clock).autoscale()
+        self.assertEquals([], autoscale_requests)
+        self.assertEquals(set(["jobbusy", "downjobbusy"]), set([m.hostname for m in all_machines]))
+        self.assertEquals([], [m.hostname for m in idle_machines])
+        
+        # the node is now just down, as PBS has rescheduled the job or removed it. Run autoscale twice to check it is removed.
+        downjobbusy["state"] = "down"
+        PBSAutostart(driver, cluster, cc_config, clock=clock).autoscale()
+        autoscale_requests, idle_machines, all_machines = PBSAutostart(driver, cluster, cc_config, clock=clock).autoscale()
+        
+        self.assertEquals([], autoscale_requests)
+        self.assertEquals(set(["jobbusy"]), set([m.hostname for m in all_machines]))
+        self.assertEquals([], [m.hostname for m in idle_machines])
+        
 
 if __name__ == "__main__":
     unittest.main()

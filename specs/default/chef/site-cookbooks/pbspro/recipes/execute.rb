@@ -16,17 +16,15 @@ yum_package package_name do
 end
 
 slot_type = node[:pbspro][:slot_type] || "execute"
+nodearray = node[:cyclecloud][:node][:template] || "execute"
 
-placement_group = node[:cyclecloud][:node][:placement_group] || nil
+placement_group = node[:cyclecloud][:node][:placement_group_id] || node[:cyclecloud][:node][:placement_group] || nil
 is_node_grouped = node[:pbspro][:is_grouped]
 instance_id = node[:cyclecloud][:instance][:id]
 
-custom_resources = node[:autoscale] || Hash.new {}
-
-if custom_resources.empty? || custom_resources.nil? then
-	set_custom_resources = "true"
-else
-	set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
+custom_resources = Hash.new {}
+if node[:autoscale] then
+    custom_resources = node[:autoscale].to_h
 end
 
 schedint = cluster.scheduler
@@ -82,6 +80,7 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
   end
 
   set_slot_type = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.slot_type=#{slot_type}'"
+  set_nodearray = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.nodearray=#{nodearray}'"
   set_ungrouped = "true"
 
   if not is_node_grouped then
@@ -103,10 +102,22 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
   end
  
   set_instance_id = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.instance_id=#{instance_id}'"
+
+  if custom_resources.empty? || custom_resources.nil? then
+    set_custom_resources = "true"
+  else
+    custom_resources.delete("disabled")
+    if custom_resources.empty? then
+        set_custom_resources = "true"
+    else    
+        set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
+    end
+  end
    
   execute "set-node-slot_type" do
     command lazy {<<-EOS
       #{set_slot_type} && \
+      #{set_nodearray} && \
       #{set_group_id} && \
       #{set_ungrouped} && \
       #{set_instance_id} && \
