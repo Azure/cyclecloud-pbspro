@@ -17,7 +17,7 @@ end
 
 slot_type = node[:pbspro][:slot_type] || "execute"
 
-placement_group = node[:cyclecloud][:node][:placement_group] || nil
+placement_group = node[:cyclecloud][:node][:placement_group_id] || node[:cyclecloud][:node][:placement_group] || nil
 is_node_grouped = node[:pbspro][:is_grouped]
 instance_id = node[:cyclecloud][:instance][:id]
 
