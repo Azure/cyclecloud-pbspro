@@ -100,6 +100,14 @@ QSELECT_EXE = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qselect')
 QSTAT_EXE = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qstat')
 QALTER_EXE = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qalter')
 QRLS_EXE = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qrls')
+QHOLD_EXE = os.path.join(pbs.pbs_conf['PBS_EXEC'], 'bin', 'qhold')
+
+
+def unset_hold_so(job_id, job):
+    if "depend" in job and not job["depend"].startswith("before"):
+        run_cmd([QRLS_EXE, "-h", "o", job_id])
+    else:
+        run_cmd([QRLS_EXE, "-h", "so", job_id])
 
 
 def periodic_release_hook(hook_config, e):
@@ -135,8 +143,7 @@ def periodic_release_hook(hook_config, e):
         debug("Key: %s\nValue: %s" % (job_id, job))
         if str(job["Resource_List"].get("ungrouped")).lower() == "true":
             debug("Skipping ungrouped job %s" % job_id)
-            qrls_cmd = [QRLS_EXE, "-h", "so", job_id]
-            run_cmd(qrls_cmd)
+            unset_hold_so(job_id, job)
             continue
         
         j_queue = job["queue"]
@@ -212,8 +219,7 @@ def periodic_release_hook(hook_config, e):
             debug("stdout %s" % stdout)
             
         debug("Release the hold on job %s" % job_id)
-        qrls_cmd = [QRLS_EXE, "-h", "so", job_id]
-        run_cmd(qrls_cmd)
+        unset_hold_so(job_id, job)
         
     e.accept()
 
