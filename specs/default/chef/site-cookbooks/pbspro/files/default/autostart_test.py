@@ -367,6 +367,14 @@ class Test(unittest.TestCase):
         q.qsub(select_expr="1:ncpus=16:mem=20G", place="pack")
         self.assertEquals([self._machine_request(count=1)], self._autoscale(q))
         
+    def test_pbsuserguide_ex1_assume_single(self):
+        '''
+            same as test_pbsuserguide_ex1 but assume -l select=ncpus=16:mem=20G instead of -l select=1...
+        '''
+        q = PBSQ()
+        q.qsub(select_expr="ncpus=16:mem=20G", place="pack")
+        self.assertEquals([self._machine_request(count=1)], self._autoscale(q))
+        
     def test_pbsuserguide_ex2(self):
         '''
             2. Request four chunks, each with 1 CPU and 4GB of memory taken from anywhere.

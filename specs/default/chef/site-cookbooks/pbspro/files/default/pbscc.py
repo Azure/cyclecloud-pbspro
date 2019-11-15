@@ -44,12 +44,13 @@ def parse_select(raw_job):
     
     for chunk_expr in select_expression.split("+"):
         chunk = collections.OrderedDict()
+        # give a default of 1 in case the user assumes 1 with their select
+        # i.e. -l select=1:mem=16gb == -l select=mem=16gb
+        # if they picked a number it will be overridden below
+        chunk["select"] = "1"
         for expr in chunk_expr.split(":"):
             key_val = expr.split("=", 1)
             if len(key_val) == 1:
-                # this shouldn't ever happen, but log it in case.
-                if "select" in chunk:
-                    continue
                 key_val = ("select", key_val[0])
             chunk[key_val[0]] = key_val[1]
         chunks.append(chunk)
