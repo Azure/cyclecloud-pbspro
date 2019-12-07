@@ -8,11 +8,15 @@ package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
 
 jetpack_download package_name do
   project 'pbspro'
+  # not_if "command -v pbsnodes"
+  not_if "ls -1 /opt/ | grep -q pbs"  
 end
 
 yum_package package_name do
   source "#{node['jetpack']['downloads']}/#{package_name}"
   action :install
+  # not_if "command -v pbsnodes"  
+  not_if "ls -1 /opt/ | grep -q pbs"
 end
 
 directory "#{node[:cyclecloud][:bootstrap]}/pbs" do
@@ -29,6 +33,21 @@ directory '/var/spool/pbs'
 # to write config to that location.
 directory '/var/spool/pbs/sched_priv' do
   mode 0o750
+end
+
+
+# Remove a pre-baked MOM config (if any)
+replace_or_add 'replace PBS MOM clienthost if needed' do
+  path "/var/spool/pbs/mom_priv/config"
+  pattern "^.clienthost.*"
+  line lazy { "$clienthost #{node[:hostname]}" }
+  only_if {::File.exist?("/var/spool/pbs/mom_priv/config")}
+end
+
+replace_or_add 'replace PBS_SERVER if needed' do
+  path "/etc/pbs.conf"
+  pattern "^PBS_SERVER.*"
+  line lazy { "PBS_SERVER=#{node[:hostname]}" }
 end
 
 cookbook_file "/var/spool/pbs/doqmgr.sh" do
@@ -56,6 +75,11 @@ end
 
 service "pbs" do
   action [:enable, :start]
+end
+
+service "pbs" do
+  action :restart
+  not_if { ::File.exist?("/etc/qmgr.config") }
 end
 
 execute "serverconfig" do

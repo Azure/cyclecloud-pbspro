@@ -58,3 +58,20 @@ bash "import autoscale hook" do
 
   notifies :restart, 'service[pbs]', :delayed
 end
+
+
+# HACK: Turn autoscale off and turn it back on again
+#       It appears that in some custom images, the hook may not fire without a nudge
+defer_block "Toggle Autostart after service restart" do
+  bash "import autoscale hook" do
+    code <<-EOH
+      set -e
+      /opt/pbs/bin/qmgr -c "set hook autoscale enabled = false"
+      /opt/pbs/bin/qmgr -c "set hook autoscale enabled = true"
+
+      touch #{node[:cyclecloud][:bootstrap]}/pbs/autoscalehook.toggled
+    EOH
+    creates "#{node[:cyclecloud][:bootstrap]}/pbs/autoscalehook.toggled"
+    only_if { node[:cyclecloud][:cluster][:autoscale][:start_enabled] }
+  end
+end  

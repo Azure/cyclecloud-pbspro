@@ -8,11 +8,15 @@ package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
 
 jetpack_download package_name do
   project 'pbspro'
+  # not_if "command -v pbsnodes"
+  not_if "ls -1 /opt/ | grep -q pbs"  
 end
 
 yum_package package_name do
   source "#{node['jetpack']['downloads']}/#{package_name}"
   action :install
+  # not_if "command -v pbsnodes"
+  not_if "ls -1 /opt/ | grep -q pbs"  
 end
 
 nodearray = node[:cyclecloud][:node][:template] || "execute"
