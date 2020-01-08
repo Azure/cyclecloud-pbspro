@@ -15,11 +15,12 @@ yum_package package_name do
   action :install
 end
 
-slot_type = node[:pbspro][:slot_type] || "execute"
 nodearray = node[:cyclecloud][:node][:template] || "execute"
+slot_type = node[:pbspro][:slot_type] || nodearray
+machinetype = node[:azure][:metadata][:compute][:vmSize]
 
 placement_group = node[:cyclecloud][:node][:placement_group_id] || node[:cyclecloud][:node][:placement_group] || nil
-is_node_grouped = node[:pbspro][:is_grouped]
+is_node_grouped = node[:pbspro][:is_hpc] || !placement_group.nil?
 instance_id = node[:cyclecloud][:instance][:id]
 
 custom_resources = Hash.new {}
@@ -81,6 +82,7 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
 
   set_slot_type = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.slot_type=#{slot_type}'"
   set_nodearray = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.nodearray=#{nodearray}'"
+  set_machinetype = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.machinetype=#{machinetype}'"
   set_ungrouped = "true"
 
   if not is_node_grouped then
@@ -121,6 +123,7 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
       #{set_group_id} && \
       #{set_ungrouped} && \
       #{set_instance_id} && \
+      #{set_machinetype} && \
       #{set_custom_resources} && \
       touch #{node_created_guard}
       EOS
