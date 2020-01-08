@@ -14,6 +14,6 @@ end
 interval = (node[:cyclecloud][:cluster][:autoscale][:stop_interval].to_i / 60.0).ceil
 cron "autostop" do
   minute "*/#{interval}"
-  command "#{node[:cyclecloud][:bootstrap]}/cron_wrapper.sh #{node[:cyclecloud][:bootstrap]}/autostop.rb > /tmp/autostop.out 2>&1"
+  command "#{node[:cyclecloud][:bootstrap]}/cron_wrapper.sh #{node[:cyclecloud][:bootstrap]}/autostop.rb >> #{node[:cyclecloud][:home]}/logs/autostop.out 1>&2"
   only_if { node[:cyclecloud][:cluster][:autoscale][:stop_enabled] }
 end
