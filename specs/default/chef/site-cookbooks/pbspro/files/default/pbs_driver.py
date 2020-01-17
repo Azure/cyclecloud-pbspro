@@ -156,6 +156,9 @@ class PBSDriver(TandemDriver):
     
     def queued_jobs(self):
         return self._get_jobs([self._bin("qstat"), "-f", "-w", "-i"])
+        
+    def queued_array_jobs(self):
+        return self._get_jobs([self._bin("qstat"), "-f", "-w", "-J"])
     
     def _get_jobs(self, args):
         stdout, stderr, code = tandem_utils.call(args)

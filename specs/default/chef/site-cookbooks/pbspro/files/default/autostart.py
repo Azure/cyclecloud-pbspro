@@ -64,10 +64,25 @@ class PBSAutostart:
         # race condition of asking the status of the queue twice.
         running_raw_jobs_str, running_converter = self.driver.running_jobs()
         queued_raw_jobs_str, queued_converter = self.driver.queued_jobs()
+        queued_raw_arr_obs_str, queued_arr_converter = self.driver.queued_array_jobs()
         
         running_raw_jobs = running_converter(running_raw_jobs_str)
-        queued_raw_jobs = queued_converter(queued_raw_jobs_str)
+        # ignore any array jobs in here - this returns only idle array jobs that haven't started a single task.
+        # so instead, in our next call we will get all job arrays and just ignore those with Queued:0 in array state count.
+        queued_raw_single_jobs = [x for x in queued_converter(queued_raw_jobs_str) if not x.get("array")]
+        queued_raw_arr_jobs = queued_arr_converter(queued_raw_arr_obs_str)
         
+        def sort_by_job_id(raw_job):
+            job_id = raw_job.get("job_id")
+            if not job_id:
+                return -1
+            for i in range(len(job_id)):
+                if not job_id[i].isdigit():
+                    break
+            
+            return int(job_id[:i])
+        
+        queued_raw_jobs = sorted(queued_raw_single_jobs + queued_raw_arr_jobs, key=sort_by_job_id)
         raw_jobs = []
         
         for raw_job in running_raw_jobs:
@@ -182,16 +197,15 @@ class PBSAutostart:
                 autoscale_job.placeby = placeby.split("=", 1)[-1]
             
             if is_array:
-                array_count = 0
                 array_tasks = raw_job["array_state_count"]
-
-                # Only grab the first two array task states (queued and running)
-                for ajob in str(array_tasks).split(" ")[:2]:
-                    array_count += int(ajob.split(":")[1])
-
-                # Multiply the number of cpus needed by number of tasks in the array
-                if array_count != 0:
-                    slots_per_job *= array_count
+                # we only want the remaining number that are queued. The running tasks are handled separately.
+                # example: "Queued:6 Running:2 Exiting:0 Expired:0"
+                array_count = int(str(array_tasks).split(" ")[0].split(":")[1])
+                if array_count == 0:
+                    pbscc.debug("Job {} has no remaining tasks. Skipping.".format(raw_job["job_id"]))
+                    continue
+                # Multiply the number of slots needed by number of tasks in the array
+                slots_per_job *= array_count
             else:
                 array_count = 1
                     
