@@ -3,7 +3,4 @@
 #
 name "pbspro_login_role"
 description "PBSPro Login Role"
-run_list("recipe[cshared::client]",
-  "recipe[cuser]",
-  "recipe[pbspro::login]",
-  "recipe[cganglia::client]")
+run_list("recipe[pbspro::login]")

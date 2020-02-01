@@ -6,13 +6,21 @@ pbsprover = node[:pbspro][:version]
 
 package_name = "pbspro-client-#{pbsprover}.x86_64.rpm"
 
+if node[:platform] == 'ubuntu'
+  test_install = "dpkg -l | grep -q pbspro-client"
+else
+  test_install = "rpm -q pbspro-client"
+end
+
 jetpack_download package_name do
   project 'pbspro'
+  not_if test_install
 end
 
 yum_package package_name do
   source "#{node['jetpack']['downloads']}/#{package_name}"
   action :install
+  not_if test_install
 end
 
 schedint = cluster.scheduler

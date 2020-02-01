@@ -6,17 +6,23 @@ pbsprover = node[:pbspro][:version]
 
 package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
 
+if node[:platform] == 'ubuntu'
+  test_install = "dpkg -l | grep -q pbspro-execution"
+else
+  test_install = "rpm -q pbspro-execution"
+end
+
 jetpack_download package_name do
   project 'pbspro'
   # not_if "command -v pbsnodes"
-  not_if "ls -1 /opt/ | grep -q pbs"  
+  not_if test_install
 end
 
 yum_package package_name do
   source "#{node['jetpack']['downloads']}/#{package_name}"
   action :install
   # not_if "command -v pbsnodes"
-  not_if "ls -1 /opt/ | grep -q pbs"  
+  not_if test_install
 end
 
 nodearray = node[:cyclecloud][:node][:template] || "execute"
