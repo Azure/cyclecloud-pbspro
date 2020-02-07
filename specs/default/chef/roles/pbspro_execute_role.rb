@@ -3,4 +3,4 @@
 #
 name "pbspro_execute_role"
 description "PBSPro Execute Role"
-run_list("recipe[pbspro::execute]")
+run_list("recipe[cuser]", "recipe[pbspro::execute]")
