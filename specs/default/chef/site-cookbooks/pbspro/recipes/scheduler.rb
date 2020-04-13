@@ -39,6 +39,14 @@ cookbook_file "/var/spool/pbs/doqmgr.sh" do
   action :create
 end
 
+cookbook_file "/var/spool/pbs/modify_limits.sh" do
+  source "modify_limits.sh"
+  mode "0755"
+  owner "root"
+  group "root"
+  action :create
+end
+
 cookbook_file "/var/spool/pbs/sched_priv/sched_config" do
   source "sched.config"
   owner "root"
@@ -51,7 +59,7 @@ service "pbs" do
 end
 
 execute "serverconfig" do
-  command "/var/spool/pbs/doqmgr.sh && touch /etc/qmgr.config"
+  command "/var/spool/pbs/doqmgr.sh && /var/spool/pbs/modify_limits.sh && touch /etc/qmgr.config"
   creates "/etc/qmgr.config"
   notifies :restart, 'service[pbs]', :delayed
 end
