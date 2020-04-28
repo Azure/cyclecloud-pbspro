@@ -28,7 +28,7 @@ if node[:autoscale] then
     custom_resources = node[:autoscale].to_h
 end
 
-schedint = cluster.scheduler
+schedint = cluster.scheduler.split(".").first
 slots = node[:pbspro][:slots] || nil
 
 if schedint != nil
