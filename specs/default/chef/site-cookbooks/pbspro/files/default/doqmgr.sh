@@ -7,6 +7,7 @@ set -e
 /opt/pbs/bin/qmgr -c 'set server managers = root@*'
 /opt/pbs/bin/qmgr -c 'set server query_other_jobs = true'
 /opt/pbs/bin/qmgr -c 'set server scheduler_iteration = 15'
+/opt/pbs/bin/qmgr -c 'set server flatuid = true'
 
 function create_resource() {
 	/opt/pbs/bin/qmgr -c "list resource $1" >/dev/null  2>/dev/null   || \
