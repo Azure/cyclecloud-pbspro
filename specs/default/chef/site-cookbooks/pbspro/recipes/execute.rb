@@ -57,6 +57,15 @@ if schedint != nil
   end
 end
 
+
+cookbook_file "/var/spool/pbs/modify_limits.sh" do
+  source "modify_limits.sh"
+  mode "0755"
+  owner "root"
+  group "root"
+  action :create
+end
+
 node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
 bash "add-node-to-scheduler" do
@@ -115,7 +124,13 @@ defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom un
         set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
     end
   end
-   
+
+  execute "modify_limits" do
+    command "/var/spool/pbs/modify_limits.sh && touch /etc/modify_limits.config"
+    creates "/etc/modify_limits.config"
+  end
+  
+  
   execute "set-node-slot_type" do
     command lazy {<<-EOS
       #{set_slot_type} && \
