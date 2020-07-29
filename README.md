@@ -1,16 +1,24 @@
-# Azure CycleCloud PBS Professional project
+# Azure CycleCloud OpenPBS project
 
-PBS Professional is a highly configurable open source workload manager. See the
-[PBSPro project site](http://www.pbspro.org/) for an overview and the [PBSpro
+OpenPBS is a highly configurable open source workload manager. See the
+[OpenPBS project site](http://www.openpbs.org/) for an overview and the [PBSpro
 documentation](https://www.pbsworks.com/PBSProductGT.aspx?n=Altair-PBS-Professional&c=Overview-and-Capabilities&d=Altair-PBS-Professional,-Documentation)
-for more information on using, configuring, and troubleshooting PBS Professional
+for more information on using, configuring, and troubleshooting OpenPBS
 in general.
 
-Azure CycleCloud uses the open source community edition of PBS Professional.
+## Versions
+
+OpenPBS (formerly PBS Professional OSS) is released as part of version `20.0.0`. PBSPro OSS is still available
+in CycleCloud by specifying the PBSPro OSS version.
+
+```ini
+   [[[configuration]]]
+   pbspro.version = 18.1.4-0
+```
 
 ## Autoscale and scalesets
 
-In order to try and ensure that the correct VMs are provisioned for different types of jobs, CycleCloud treats autoscale of MPI and serial jobs differently in PBS Professional clusters. 
+In order to try and ensure that the correct VMs are provisioned for different types of jobs, CycleCloud treats autoscale of MPI and serial jobs differently in OpenPBS clusters. 
 
 For serial jobs, multiple VM scalesets (VMSS) are used in order to scale as quickly as possible. For MPI jobs to use the InfiniBand fabric for those instances that support it, all of the nodes allocated to the job have to be deployed in the same VMSS. Currently, a single VMSS is used for all MPI jobs. This can occasionally lead to slower provisioning and deprovisioning of nodes since VMSS operations are atomic. If the scaleset is waiting on some nodes to deprovision, CycleCloud must wait for that operation to complete to provision more nodes.
 
