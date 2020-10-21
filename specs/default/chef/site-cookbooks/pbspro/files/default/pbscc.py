@@ -61,7 +61,7 @@ def parse_select(raw_job):
 def format_select(chunk):
     expr = "%s" % chunk["select"]
     
-    for key, value in chunk.iteritems():
+    for key, value in chunk.items():
         if key == "select":
             continue
         expr += ":%s=%s" % (key, value)

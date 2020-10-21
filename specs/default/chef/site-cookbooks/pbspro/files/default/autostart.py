@@ -21,6 +21,11 @@ import pbscc
 from copy import deepcopy
 import numbers
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 
 class PBSAutostart:
     '''
@@ -126,7 +131,7 @@ class PBSAutostart:
                     if "ncpus" not in chunk:
                         chunk["ncpus"] = "1"
                     
-                    for key, value in chunk.iteritems():
+                    for key, value in chunk.items():
                         if key not in ["select", "nodect"]:
                             try:
                                 value = pbscc.parse_gb_size(key, value) * chunk["nodect"]
@@ -150,7 +155,7 @@ class PBSAutostart:
             if pbs_job["job_state"].upper() == pbscc.JOB_STATE_RUNNING:
                 # update running job
                 live_resources = pbscc.parse_exec_vnode(raw_job["exec_vnode"])
-                for key, value in live_resources.iteritems():
+                for key, value in live_resources.items():
                     # live resources are calculated on a per node basis, but the Resource_List is based
                     # on a total basis.
                     # we will normalize this below
@@ -221,7 +226,7 @@ class PBSAutostart:
 
             autoscale_job.ncpus += slots_per_job
             
-            for attr, value in pbs_job.Resource_List.iteritems():
+            for attr, value in pbs_job.Resource_List.items():
                 if attr not in scheduler_resources:
                     # if it isn't a scheduler level attribute, don't bother 
                     # considering it for autoscale as the scheduler won't respect it either.
@@ -269,7 +274,7 @@ class PBSAutostart:
                 continue
                 
             # ensure that any custom attribute the user specified, like disk = 100G, gets parsed correctly
-            for key, value in machinetype.iteritems():
+            for key, value in machinetype.items():
                 try:
                     machinetype[key] = pbscc.parse_gb_size(key, value)
                 except InvalidSizeExpressionError:
@@ -358,7 +363,7 @@ class PBSAutostart:
             pbscc.info("Shutting down instance ids %s" % instance_ids_to_shutdown.keys())
             self.clusters_api.shutdown(instance_ids_to_shutdown.keys())
             
-            for hostname in instance_ids_to_shutdown.itervalues():
+            for hostname in instance_ids_to_shutdown.values():
                 pbscc.info("Deleting %s" % hostname)
                 self.driver.delete_host(hostname)
         
@@ -448,7 +453,7 @@ class PBSAutostart:
                 booting_instance_ids.pop(instance_id)
             nodes_by_instance_id[instance_id] = pbsnode
         
-        for instance_id, node in list(booting_instance_ids.iteritems()):
+        for instance_id, node in list(booting_instance_ids.items()):
             nodearray_name = node["Template"]
             machinetype_name = node["MachineType"]
             
@@ -571,7 +576,7 @@ def compress_queued_jobs(autoscale_jobs):
         comp_bucket = (job.nodearray, job.nodes, job.placeby, job.placeby_value, job.exclusive, job.packing_strategy) + tuple(job.resources.items())
         compression_buckets[comp_bucket].append(job)
         
-    for comp_bucket, job_list in compression_buckets.iteritems():
+    for comp_bucket, job_list in compression_buckets.items():
         if len(job_list) == 1:
             ret.extend(job_list)
             continue

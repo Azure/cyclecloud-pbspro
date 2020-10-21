@@ -50,6 +50,10 @@ def perform_hook():
         
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env_with_src_dirs)
         stdout, stderr = proc.communicate()
+        if hasattr(stdout, "decode"):
+            stdout = stdout.decode()
+            stderr = stderr.decode()
+            
         pbs.logmsg(pbs.LOG_DEBUG, stderr)
         if proc.returncode != 0:
             raise RuntimeError('autostart failed!\n\tstdout="%s"\n\tstderr="%s"' % (stdout, stderr))

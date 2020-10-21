@@ -10,6 +10,12 @@ from submit_hook import QSELECT_EXE, QSTAT_EXE, QRLS_EXE, QALTER_EXE
 import submit_hook
 
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
+
 class Job:
     
     def __init__(self, job_id=1, Hold_Types=None, queue="workq", **resource_list):

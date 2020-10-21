@@ -2,7 +2,6 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 #
-import cStringIO
 from collections import OrderedDict
 
 import tandem_utils
@@ -12,6 +11,13 @@ from tandem_driver_main import TandemDriver
 import os
 import re
 import pbscc
+
+try:
+    import cStringIO
+    basestring
+except ImportError:
+    from io import StringIO as cStringIO
+    basestring = str
 
 #     E -     Job is    exiting    after having run.
 #     H -     Job is    held.
@@ -74,6 +80,9 @@ class PBSDriver(TandemDriver):
     def jobstatus(self, scheduler_name, marker=None, local_job_id_query=None):
         marker = float(marker) if marker else 0
         stdout, stderr, code, converter = self._jobstatus()
+        if hasattr(stdout, "decode"):
+            stdout = stdout.decode()
+            stderr = stderr.decode()
         if code == 0:
             return converter(stdout)
         elif code == _PBS_NOT_FOUND:
@@ -102,6 +111,9 @@ class PBSDriver(TandemDriver):
             
     def _jobstatus(self, local_job_id_query=None):
         stdout, stderr, code = tandem_utils.call(self.qstat_args(local_job_id_query))
+        if hasattr(stdout, "decode"):
+            stdout = stdout.decode()
+            stderr = stderr.decode()
         return stdout, stderr, code, _from_qstat
 
     def submit(self, scheduler_name, format, submit_data):
@@ -162,6 +174,9 @@ class PBSDriver(TandemDriver):
     
     def _get_jobs(self, args):
         stdout, stderr, code = tandem_utils.call(args)
+        if hasattr(stdout, "decode"):
+            stdout = stdout.decode()
+            stderr = stderr.decode()
         if code == 0:
             return stdout, _from_qstat
         elif code == _PBS_NOT_FOUND:
@@ -174,6 +189,9 @@ class PBSDriver(TandemDriver):
 
     def pbsnodes(self, grouping=None, keyformatter=lambda x: x):
         stdout, stderr, ret = tandem_utils.call([self._bin("pbsnodes"), "-a", "-F", "json"])
+        if hasattr(stdout, "decode"):
+            stdout = stdout.decode()
+            stderr = stderr.decode()
         
         if ret == 1 and 'Server has no node list' in stderr:
             return {None: {}}
@@ -190,7 +208,7 @@ class PBSDriver(TandemDriver):
             grouping = (grouping, )
         
         grouped = OrderedDict()
-        for _node_name, node in nodes.iteritems():
+        for _node_name, node in nodes.items():
             res_avail = node["resources_available"]
             
             def flat_get(node, g):
@@ -212,11 +230,11 @@ class PBSDriver(TandemDriver):
     def alter(self, jobs):
         resources = {}
         for job in jobs: 
-            resource_arg = ":".join(["%s=%s" % (x, y) for x, y in job.iteritems()])
+            resource_arg = ":".join(["%s=%s" % (x, y) for x, y in job.items()])
             if resource_arg not in resources:
                 resources[resource_arg] = []
             resources[resource_arg].append(job["job_id"])
-        for resource_arg, job_ids in resources.iteritems():
+        for resource_arg, job_ids in resources.items():
             tandem_utils.check_call(". /etc/cluster-setup.sh && qalter %s -l %s" % (",".join([str(j) for j in job_ids]), resource_arg))
 
     def parse_select(self, job):
@@ -267,7 +285,7 @@ def transform_tandem_job(job, stream):
     
 
 def _to_jobad(job, stream):
-    for key, value in job.iteritems():
+    for key, value in job.items():
         stream.write("%s = %s\n" % (key, value))
     stream.write("queue\n")
 
