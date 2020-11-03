@@ -156,7 +156,6 @@ Order = 10
         Label = Region
         Description = Deployment Location
         ParameterType = Cloud.Region
-        DefaultValue = westus2
 
         [[[parameter MasterMachineType]]]
         Label = Master VM Type
