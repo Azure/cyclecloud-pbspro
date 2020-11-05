@@ -3,7 +3,7 @@
 #
 # 
 
-default[:pbspro][:version] = "20.0.0-0"
+default[:pbspro][:version] = "20.0.1-0"
 default[:pbspro][:slots] = nil
 
 default[:pbspro][:is_grouped] = true

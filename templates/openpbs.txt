@@ -18,7 +18,7 @@ Autoscale = $Autoscale
     KeyPairLocation = ~/.ssh/cyclecloud.pem
     
         [[[configuration]]]
-
+        pbspro.version = $PBSVersion
         # For fast spin-up after Deallocate, force an immediate re-converge on boot
         cyclecloud.converge_on_boot = true
 
@@ -315,15 +315,21 @@ Order = 20
         Label = Scheduler OS
         ParameterType = Cloud.Image
         Config.OS = linux
-        DefaultValue = cycle.image.centos7
-        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.ubuntu18"}
+        DefaultValue = cycle.image.centos8
+        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8"}
 
         [[[parameter ImageName]]]
         Label = Compute OS
         ParameterType = Cloud.Image
         Config.OS = linux
-        DefaultValue = cycle.image.centos7
-        Config.Filter := Package === "cycle.image.centos7"
+        DefaultValue = cycle.image.centos8
+        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8"}
+
+        [[[parameter PBSVersion]]]
+        Label = PBS Version
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="OpenPBS v20, el8-only"; Value="20.0.1-0"], [Label="PBSPro v18, el7-only"; Value="18.1.4-0"]}
+        DefaultValue = 20.0.1-0
 
         [[[parameter serverClusterInitSpecs]]]
         Label = Server Cluster-Init
