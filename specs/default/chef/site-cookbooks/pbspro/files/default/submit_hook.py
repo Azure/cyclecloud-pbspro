@@ -138,7 +138,7 @@ def periodic_release_hook(hook_config, e):
     qstat_json = json.loads(stdout)
     jobs = qstat_json["Jobs"]
     
-    for job_id, job in jobs.iteritems():
+    for job_id, job in jobs.items():
         # Reevaluate each held job
         debug("Key: %s\nValue: %s" % (job_id, job))
         if str(job["Resource_List"].get("ungrouped")).lower() == "true":
@@ -175,7 +175,7 @@ def periodic_release_hook(hook_config, e):
                         default_place_dict.pop("arrangement", "")
                     
                     # update if not exist from defaults
-                    for k, v in default_place_dict.iteritems():
+                    for k, v in default_place_dict.items():
                         mj_place_dict[k] = mj_place_dict.get(k, v)
                         
                     # the job is a -l nodes job and the queue didn't specify arrangement or sharing
@@ -228,6 +228,9 @@ def run_cmd(cmd):
     debug("Cmd: %s" % cmd)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
+    if hasattr(stdout, "decode"):
+        stdout = stdout.decode()
+        stderr = stderr.decode()
     if proc.returncode != 0:
         msg = 'cmd failed!\n\tstdout="%s"\n\tstderr="%s"' % (stdout, stderr)
         error(msg)

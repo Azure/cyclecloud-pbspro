@@ -16,7 +16,7 @@ def calcPiNewton(digits):
 # This algorithm puts 2 * 1000 on the right side and computes everything from inside out.
 
     scale = 10000
-    maxarr = int(digits/4) * 14
+    maxarr = int(digits//4) * 14
     arrinit = 2000
     carry = 0
     arr = []
@@ -30,15 +30,15 @@ def calcPiNewton(digits):
         for j in range(i, 0, -1):
             sum = (sum * j) + (scale * arr[j])
             arr[j] = sum % ( (j*2)-1 )
-            sum = sum / ((j*2)-1)
-        output += "%04d" % (carry + (sum / scale))
+            sum = sum // ((j*2)-1)
+        output += "%04d" % (carry + (sum // scale))
         carry = sum % scale
     
     return output
 
     
 def usage():
-    print 'Calculate pi to x digits.  Usage: python pi.py [digits]'
+    print('Calculate pi to x digits.  Usage: python pi.py [digits]')
 
 
 def main():
@@ -59,16 +59,16 @@ def main():
     if args:
         digits = int(args[0])
         if digits < 1:
-            print 'Not a valid number of digits: %s' % digits
+            print('Not a valid number of digits: %s' % digits)
     else:
         digits = 1000
-        print 'Calculating the default number of pi digits (%s)' % digits
+        print('Calculating the default number of pi digits (%s)' % digits)
         
     # do the calculation
     start_time = time.time()
-    print calcPiNewton(digits)
+    print(calcPiNewton(digits))
     end_time = time.time()
-    print "TotalTime=%f" %(end_time-start_time)
+    print("TotalTime=%f" % (end_time - start_time))
         
     
 

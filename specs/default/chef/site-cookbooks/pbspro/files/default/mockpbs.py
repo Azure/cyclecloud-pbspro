@@ -4,8 +4,13 @@
 import logging
 import os
 import time
-from UserDict import UserDict
 from copy import deepcopy
+
+try:
+    from UserDict import UserDict
+except ImportError:
+    UserDict = dict
+
 
 LOG_DEBUG = logging.DEBUG
 LOG_WARNING = logging.WARN
@@ -84,7 +89,7 @@ class _MockJob:
         self._data[attr] = value
         
     def iteritems(self):
-        return self._data.iteritems()
+        return self._data.items()
     
     def __contains__(self, key):
         return key in self._data

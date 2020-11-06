@@ -83,7 +83,7 @@ class TestSubmit(unittest.TestCase):
         
         jobs = json.loads(check_output(['qstat', '-f', '-F', 'json']))
         jobs_by_name = {}
-        for job_id, job in jobs.get("Jobs", {}).iteritems():
+        for job_id, job in jobs.get("Jobs", {}).items():
             job["Job_Id"] = job_id 
             jobs_by_name[job["Job_Name"]] = job
         
@@ -110,7 +110,7 @@ class TestSubmit(unittest.TestCase):
                 try:
                     # continually collect host information. Some may get shutdown while we are waiting for other jobs to complete.
                     nodes = json.loads(check_output(["pbsnodes", "-a", "-F", "json"]))
-                    for hostname, node in nodes["nodes"].iteritems():
+                    for hostname, node in nodes["nodes"].items():
                         hosts[hostname.lower()] = node
                 except CalledProcessError:
                     # pbsnodes exits with 1 if there are no nodes, just ignore.

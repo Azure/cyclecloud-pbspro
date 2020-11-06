@@ -1,7 +1,9 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 #
-default[:pbspro][:version] = "18.1.4-0"
+# 
+
+default[:pbspro][:version] = "20.0.1-0"
 default[:pbspro][:slots] = nil
 
 default[:pbspro][:is_grouped] = true
@@ -25,7 +27,7 @@ default[:pbspro][:autoscale_hook][:cyclecloud_home] = node[:cyclecloud][:home]
 default[:pbspro][:autoscale_hook][:autostart_log_level] = "DEBUG"
 default[:pbspro][:autoscale_hook][:autostart_log_file_level] = "DEBUG"
 
-if node[:cyclecloud][:node][:template] == "master"
+if node[:cyclecloud][:node][:template] == "server"
 	default[:cyclecloud][:cluster][:autoscale][:idle_time_before_jobs] = 3600
 	default[:cyclecloud][:cluster][:autoscale][:idle_time_after_jobs] = 300
 else
