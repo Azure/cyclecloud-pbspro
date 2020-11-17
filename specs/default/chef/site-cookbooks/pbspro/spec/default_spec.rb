@@ -40,10 +40,6 @@ describe 'pbspro::execute' do
         it 'adds node to scheduler' do
           expect(chef_run).to run_bash("add-node-to-scheduler")
         end
-        
-        it 'creates cron autostop job' do
-          expect(chef_run).to create_cron("autostop")
-        end
 
       end
     end
@@ -97,7 +93,7 @@ describe 'pbspro::scheduler' do
           expect(chef_run).to start_service("pbs")
         end
 
-        ['pbspro::autostart', 'pbspro::submit_hook'].each do |recipe|
+        ['pbspro::autoscale'].each do |recipe|
           it "includes #{recipe}" do
             expect(chef_run).to include_recipe(recipe)
           end

@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "pbspro",
+			"name": "pbspro"
+		},
+                {
+                        "path": "modules/cyclecloud-scalelib/src",
+                        "name": "scalelib"
+                }
+	],
+	"settings": {
+		"java.autobuild.enabled": false,
+		"java.completion.enabled": false,
+		"java.dependency.autoRefresh": false,
+		"java.dependency.syncWithFolderExplorer": false,
+		"java.completion.overwrite": false,
+		"pythonTestExplorer.testFramework": "pytest",
+		"python.envFile": "${workspaceFolder}/.env",
+		"python.testing.pytestArgs": [
+			"--rootdir=test"
+		],
+		"terminal.integrated.env.osx": {"PYTHONPATH": "pbspro/src:pbspro/test:modules/cyclecloud-scalelib/src"}
+	},
+	
+}

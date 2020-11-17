@@ -116,7 +116,7 @@ Autoscale = $Autoscale
         
 	[[[cluster-init cyclecloud/pbspro:login]]]
     [[[configuration]]]
-    autoscale.disabled = true
+    autoscale.enabled = false
 
     [[nodearray execute]]
     MachineType = $ExecuteMachineType
@@ -127,7 +127,7 @@ Autoscale = $Autoscale
 
 
         [[[configuration]]]
-        autoscale.disabled = ${Autoscale == False}
+        autoscale.enabled = $Autoscale
         
         [[[cluster-init cyclecloud/pbspro:execute]]]
 

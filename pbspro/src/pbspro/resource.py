@@ -1,14 +1,26 @@
-import typing_extensions
-from typing import Any, Dict
+import os
 from abc import abstractmethod
-from hpc.autoscale.hpctypes import Size as HPCSize, add_magnitude_conversion
+from subprocess import CalledProcessError
+from typing import Any, Dict, List
 
+import typing_extensions
+from hpc.autoscale import hpclogging as logging
+from hpc.autoscale.hpctypes import Size as HPCSize
+from hpc.autoscale.hpctypes import add_magnitude_conversion
+from hpc.autoscale.node.constraints import SharedResource
+
+from pbspro.pbscmd import PBSCMD
 
 add_magnitude_conversion("w", 8)
+add_magnitude_conversion("kb", 1 * 1024)
 add_magnitude_conversion("kw", 8 * 1024)
+add_magnitude_conversion("mb", 1 * (1024 ** 2))
 add_magnitude_conversion("mw", 8 * (1024 ** 2))
+add_magnitude_conversion("gb", 1 * (1024 ** 3))
 add_magnitude_conversion("gw", 8 * (1024 ** 3))
+add_magnitude_conversion("tb", 1 * (1024 ** 4))
 add_magnitude_conversion("tw", 8 * (1024 ** 4))
+add_magnitude_conversion("pb", 1 * (1024 ** 5))
 add_magnitude_conversion("pw", 8 * (1024 ** 5))
 
 
@@ -22,6 +34,13 @@ ResourceFlag = typing_extensions.Literal[
 ]
 # fmt: on
 
+if hasattr(ResourceFlag, "__args__"):
+    ResourceFlagNames = ResourceFlag.__args__  # type: ignore
+elif hasattr(ResourceFlag, "__values__"):
+    ResourceFlagNames = ResourceFlag.__values__  # type: ignore
+else:
+    ResourceFlagNames = ["", "fh", "h", "nh", "q"]
+
 ResourceTypeNames = typing_extensions.Literal["boolean", "duration"]
 
 
@@ -30,9 +49,15 @@ class ResourceParsingError(RuntimeError):
 
 
 class ResourceType:
+    def __init__(self) -> None:
+        self.name = self.__class__.__name__.replace("Type", "").lower()
+
     @abstractmethod
     def parse(self, expr: str) -> Any:
         ...
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
 
 VALID_TRUE = ["TRUE", "True", "true", "T", "t", "Y", "y", "1"]
@@ -151,45 +176,99 @@ class StringArrayType(ResourceType):
         return [x.strip() for x in expr.split(",")]
 
 
+RESOURCE_TYPES: Dict[str, "ResourceType"] = {
+    "boolean": BooleanType(),
+    "duration": DurationType(),
+    "float": FloatType(),
+    "long": LongType(),
+    "size": SizeType(),
+    "string": StringType(),
+    "string_array": StringArrayType(),
+}
 
-class PBSProResource:
+
+def read_resource_definitions(
+    pbscmd: PBSCMD, config: Dict
+) -> Dict[str, "PBSProResourceDefinition"]:
+    ret: Dict[str, PBSProResourceDefinition] = {}
+    res_dicts = pbscmd.qmgr_parsed("list", "resource")
+
+    res_names = set([x["name"] for x in res_dicts])
+
+    # TODO I believe this is the only one, but leaving a config option
+    # as a backup plan
+    read_only = config.get("pbspro", {}).get("read_only_resources", ["host", "vnode"])
+
+    def_sched = pbscmd.qmgr_parsed("list", "sched", "default")
+    sched_priv = def_sched[0]["sched_priv"]
+    sched_config = os.path.join(sched_priv, "sched_config")
+    from pbspro.parser import PBSProParser
+
+    parser = PBSProParser(config)
+    sched_resources = parser.parse_resources_from_sched_priv(sched_config)
+
+    missing_res = sched_resources - res_names
+    missing_res_dicts = []
+    for res_name in missing_res:
+        try:
+            missing_res_dicts.extend(pbscmd.qmgr_parsed("list", "resource", res_name))
+        except CalledProcessError as e:
+            logging.warning(
+                "Could not find resource %s that was defined in %s, Ignoring",
+                res_name,
+                sched_config,
+            )
+            logging.fine(e)
+
+    for rdict in res_dicts + missing_res_dicts:
+        name = rdict["name"]
+        res_type = RESOURCE_TYPES[rdict["type"]]
+        flag: ResourceFlag = rdict.get("flag", "")  # type: ignore
+        ret[name] = PBSProResourceDefinition(name, res_type, flag)
+        if name in read_only:
+            ret[name].read_only = True
+
+    return ret
+
+
+class PBSProResourceDefinition:
     """Resource slot_type
     type = string
-    flag = h
-
-Resource group_id
-    type = string
-    flag = h
-
-Resource ungrouped
-    type = string
-    flag = h
-
-Resource instance_id
-    type = string
-    flag = h
-
-Resource machinetype
-    type = string
-    flag = h
-
-Resource nodearray
-    type = string
-    flag = h
-
-Resource disk
-    type = size
-    flag = h
-
-Resource ngpus
-    type = size
     flag = h"""
 
     def __init__(
         self, name: str, resource_type: ResourceType, flag: ResourceFlag
     ) -> None:
-        pass
+        self.name = name
+        self.type = resource_type
+        self.flag = "".join(sorted(flag))
+        self.read_only = False
+
+    @property
+    def is_consumable(self) -> bool:
+        return self.flag in ["fh", "hn", "q", "hmnq"]
+
+    @property
+    def is_host(self) -> bool:
+        return "h" in self.flag
+
+    def __repr__(self) -> str:
+        return "ResourceDef(name={}, type={}, flag={})".format(
+            self.name, self.type.name, self.flag
+        )
 
 
-def parse_resource_definitions(expr: str) -> Dict[str, PBSProResource]:
+class ResourceState:
+    def __init__(
+        self,
+        resources_available: Dict[str, Any],
+        resources_assigned: Dict[str, Any],
+        shared_resources: Dict[str, List[SharedResource]],
+    ) -> None:
+        self.resources_available = resources_available
+        self.resources_assigned = resources_assigned
+        self.shared_resources = shared_resources
+
+
+def parse_resource_definitions(expr: str) -> Dict[str, PBSProResourceDefinition]:
     return {}

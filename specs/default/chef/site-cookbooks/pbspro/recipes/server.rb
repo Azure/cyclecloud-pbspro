@@ -28,10 +28,18 @@ else
   end
 end
 
-directory "#{node[:cyclecloud][:bootstrap]}/pbs" do
+directory "#{node[:pbspro][:autoscale_project_home]}" do
   owner "root"
   group "root"
   mode "0755"
+  action :create
+end
+
+cookbook_file "#{node[:pbspro][:autoscale_project_home]}/logging.conf" do
+  source "logging.conf"
+  mode "0644"
+  owner "root"
+  group "root"
   action :create
 end
 
@@ -77,5 +85,61 @@ execute "serverconfig" do
   notifies :restart, 'service[pbs]', :delayed
 end
 
-include_recipe "pbspro::autostart"
-include_recipe "pbspro::submit_hook"
+file "/etc/profile.d/azpbs_autocomplete.sh" do
+  content 'eval "$(/opt/cycle/pbspro/venv/bin/register-python-argcomplete azpbs)" || echo "Warning: Autocomplete is disabled" 1>&2'
+  mode '0755'
+  owner 'root'
+  group 'root'
+end
+
+bash 'setup cyclecloud-pbspro' do
+  code <<-EOH
+  source /etc/profile.d/pbs.sh
+  set -e
+
+  cd #{node[:cyclecloud][:bootstrap]}/
+
+  rm -f #{node[:pbspro][:autoscale_installer]} 2> /dev/null
+
+  jetpack download #{node[:pbspro][:autoscale_installer]} --project pbspro ./
+  
+  if [ -e cyclecloud-pbspro ]; then
+    rm -rf cyclecloud-pbspro/
+  fi
+
+  tar xzf #{node[:pbspro][:autoscale_installer]}
+
+  cd cyclecloud-pbspro/
+  
+  INSTALLDIR=#{node[:pbspro][:autoscale_project_home]}
+  mkdir -p $INSTALLDIR/venv
+  ./install.sh --install-python3 --venv $INSTALLDIR/venv
+  
+  azpbs initconfig --cluster-name #{node[:cyclecloud][:cluster][:name]} \
+                  --username     #{node[:cyclecloud][:config][:username]} \
+                  --password     #{node[:cyclecloud][:config][:password]} \
+                  --url          #{node[:cyclecloud][:config][:web_server]} \
+                  --lock-file    $INSTALLDIR/scalelib.lock \
+                  --log-config   $INSTALLDIR/logging.conf \
+                  --disable-default-resources \
+                  --default-resource '{"select": {}, "name": "ncpus", "value": "node.pcpu_count"}' \
+                  --default-resource '{"select": {}, "name": "ngpus", "value": "node.gpu_count"}' \
+                  --default-resource '{"select": {}, "name": "disk", "value": "size::20g"}' \
+                  --default-resource '{"select": {}, "name": "host", "value": "node.hostname"}' \
+                  --default-resource '{"select": {}, "name": "slot_type", "value": "node.nodearray"}' \
+                  --default-resource '{"select": {}, "name": "group_id", "value": "node.placement_group"}' \
+                  --default-resource '{"select": {}, "name": "mem", "value": "node.memory"}' \
+                  --default-resource '{"select": {}, "name": "vm_size", "value": "node.vm_size"}' \
+                  --idle-timeout #{node[:pbspro][:idle_timeout]} \
+                  --boot-timeout #{node[:pbspro][:boot_timeout]} \
+                   > $INSTALLDIR/autoscale.json || exit 1
+
+
+  ls #{node[:pbspro][:autoscale_project_home]}/autoscale.json || exit 1
+
+  EOH
+
+  action :run
+end
+
+include_recipe "pbspro::autoscale"

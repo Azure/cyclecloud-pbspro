@@ -1,12 +1,15 @@
+from hpc.autoscale.hpctypes import Size as HPCSize
+
 from pbspro.resource import (
     BooleanType,
     DurationType,
     FloatType,
     LongType,
+    PBSProResourceDefinition,
     ResourceParsingError,
     SizeType,
+    StringType,
 )
-from hpc.autoscale.hpctypes import Size as HPCSize
 
 
 def test_parse_boolean() -> None:
@@ -71,3 +74,22 @@ def test_parse_size() -> None:
     assert HPCSize.value_of("8g") == SizeType().parse("1gw")
     assert HPCSize.value_of("8t") == SizeType().parse("1tw")
     assert HPCSize.value_of("8p") == SizeType().parse("1pw")
+
+
+def test_pbspro_resource() -> None:
+    ncpus = PBSProResourceDefinition("ncpus", LongType(), "nh")
+    ccnodeid = PBSProResourceDefinition("ccnodeid", StringType(), "h")
+    qres = PBSProResourceDefinition("qres", LongType(), "q")
+    sres = PBSProResourceDefinition("sres", LongType(), "")
+
+    assert ncpus.is_consumable
+    assert ncpus.is_host
+
+    assert not ccnodeid.is_consumable
+    assert ccnodeid.is_host
+
+    assert qres.is_consumable
+    assert not qres.is_host
+
+    assert not sres.is_consumable
+    assert not sres.is_host

@@ -42,7 +42,7 @@ sleep 3600
 '''.strip())
 
         os.chown(job_script, uid, gid)
-        os.chmod(job_script, 0755)
+        os.chmod(job_script, 0x0755)
 
     return job_script
 
@@ -87,14 +87,13 @@ class TestSubmit(unittest.TestCase):
             job["Job_Id"] = job_id 
             jobs_by_name[job["Job_Name"]] = job
         
-        def check_job(job_uuid, select, place, slot_type="execute", ungrouped=False):
+        def check_job(job_uuid, select, place, slot_type="execute"):
             self.assertEquals(select, jobs_by_name[job_uuid]["Resource_List"]["select"])
             self.assertEquals(place, jobs_by_name[job_uuid]["Resource_List"]["place"])
             self.assertEquals(slot_type, jobs_by_name[job_uuid]["Resource_List"]["slot_type"])
-            self.assertEquals(str(ungrouped).lower(), str(jobs_by_name[job_uuid]["Resource_List"]["ungrouped"]).lower())
             
         check_job(simple, "1:ncpus=1:slot_type=execute:ungrouped=false", "pack:group=group_id")
-        check_job(simple_htcq, "1:ncpus=1:slot_type=execute:ungrouped=true", "pack", ungrouped=True)
+        check_job(simple_htcq, "1:ncpus=1:slot_type=execute:ungrouped=true", "pack")
         check_job(multipart_select, "2:ncpus=2+1:ncpus=2", "scatter:group=group_id")
         check_job(vscatter_excl, "2:ncpus=1", "vscatter:excl:group=group_id")
         check_job(smp, "2:ncpus=1", "pack:group=host")
@@ -151,7 +150,7 @@ class TestSubmit(unittest.TestCase):
                     self.assertIsNotNone(hosts[hostname]["resources_available"].get("group_id"))
                 else:
                     self.assertIsNone(hosts[hostname]["resources_available"].get("group_id"))
-                self.assertEquals(str(not placed).lower(), str(hosts[hostname]["resources_available"]["ungrouped"]).lower())
+                #self.assertEquals(str(not placed).lower(), str(hosts[hostname]["resources_available"]["ungrouped"]).lower())
                 
         check_hosts(simple, 1, 1, True)
         check_hosts(simple_htcq, 1, 1, False)
