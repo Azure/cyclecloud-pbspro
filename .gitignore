@@ -17,4 +17,6 @@ build
 .DS_Store
 *.cache
 **/*.db
+blobs/**
+dist/**
 .env
