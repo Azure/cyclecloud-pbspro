@@ -42,7 +42,7 @@ sleep 3600
 '''.strip())
 
         os.chown(job_script, uid, gid)
-        os.chmod(job_script, 0755)
+        os.chmod(job_script, 0x0755)
 
     return job_script
 

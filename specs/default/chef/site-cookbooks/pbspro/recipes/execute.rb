@@ -34,7 +34,7 @@ if node[:autoscale] then
     custom_resources = node[:autoscale].to_h
 end
 
-schedint = cluster.scheduler.split(".").first
+schedint = (node[:pbspro][:scheduler] || cluster.scheduler).split(".").first
 slots = node[:pbspro][:slots] || nil
 
 if schedint != nil
@@ -85,77 +85,20 @@ bash "add-node-to-scheduler" do
 end
 
 defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do
-  execute "set-node-core-count" do
-    command lazy { "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.ncpus=#{slots}'" }
-    only_if { !slots.nil? }
+  
+  execute "set-node-offline" do
+    command lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]}"}
     not_if {::File.exist?(node_created_guard)}
-  end
-  execute "set-node-free" do
-    command lazy { "/opt/pbs/bin/pbsnodes -r #{node[:hostname]}"}
-    not_if {::File.exist?(node_created_guard)}
-  end
-
-  set_slot_type = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.slot_type=#{slot_type}'"
-  set_nodearray = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.nodearray=#{nodearray}'"
-  set_machinetype = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.machinetype=#{machinetype}'"
-  set_ungrouped = "true"
-
-  if not is_node_grouped then
-  	# user data explicitly says this is an ungrouped node.
-  	set_ungrouped = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.ungrouped=true'"
-  else
-  	if placement_group then
-  		# user data didn't explicitly say this was an ungrouped node, but we are in a placement group
-  		set_ungrouped = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.ungrouped=false'"
-  	else
-  		# user data didn't explicitly say this was an ungrouped node, but we aren't in a placement group
-  		set_ungrouped = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.ungrouped=true'"
-  	end
-  end
- 
-  set_group_id = "true"
-  if placement_group then
-    set_group_id = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.group_id=#{placement_group}'"
-  end
- 
-  set_instance_id = "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.instance_id=#{instance_id}'"
-
-  if custom_resources.empty? || custom_resources.nil? then
-    set_custom_resources = "true"
-  else
-    custom_resources.delete("disabled")
-    if custom_resources.empty? then
-        set_custom_resources = "true"
-    else    
-        set_custom_resources = custom_resources.map{ |key, value| "/opt/pbs/bin/qmgr -c 's n #{node[:hostname]} resources_available.#{key}=#{value}'"}.join(" && ")
-    end
   end
 
   execute "modify_limits" do
     command "/var/spool/pbs/modify_limits.sh && touch /etc/modify_limits.config"
     creates "/etc/modify_limits.config"
-  end
-  
-  
-  execute "set-node-slot_type" do
-    command lazy {<<-EOS
-      #{set_slot_type} && \
-      #{set_nodearray} && \
-      #{set_group_id} && \
-      #{set_ungrouped} && \
-      #{set_instance_id} && \
-      #{set_machinetype} && \
-      #{set_custom_resources} && \
-      touch #{node_created_guard}
-      EOS
-    }
-    creates node_created_guard
     notifies :restart, 'service[pbs]', :immediately
   end
+  
 end
 
 service "pbs" do
   action :nothing
 end
-
-include_recipe "pbspro::autostop"

@@ -16,7 +16,7 @@ function create_resource() {
 
 create_resource slot_type string
 create_resource group_id string
-create_resource ungrouped string
+create_resource ungrouped boolean
 create_resource instance_id string
 create_resource machinetype string
 create_resource nodearray string

@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": ".",
+			"name": "pbspro"
+		}
+	],
+	"settings": {
+		"java.autobuild.enabled": false,
+		"java.completion.enabled": false,
+		"java.dependency.autoRefresh": false,
+		"java.dependency.syncWithFolderExplorer": false,
+		"java.completion.overwrite": false,
+		"pythonTestExplorer.testFramework": "pytest",
+		"python.envFile": "${workspaceFolder}/.env",
+		"python.testing.pytestArgs": [
+			"--rootdir=test"
+		],
+		"terminal.integrated.env.osx": {"PYTHONPATH": "src:test:/Users/ryhamel/code/cyclecloud-scalelib"}
+	},
+	
+}
