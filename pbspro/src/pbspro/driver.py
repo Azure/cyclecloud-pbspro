@@ -20,6 +20,7 @@ from pbspro.resource import PBSProResourceDefinition
 from pbspro.scheduler import PBSProScheduler, read_schedulers
 from functools import lru_cache
 from hpc.autoscale.node.nodemanager import NodeManager
+from numbers import Number
 
 
 # sched_config = "/var/spool/pbs/sched_priv/sched_config"
@@ -148,6 +149,7 @@ class PBSProDriver(SchedulerDriver):
                         "ccnodeid", node.resources["ccnodeid"]
                     ),
                 )
+                self.pbscmd.pbsnodes("-r", node.hostname)
                 ret.append(node)
             except SubprocessError as e:
                 logging.error(
@@ -291,6 +293,7 @@ def parse_jobs(
     response: Dict = pbscmd.qstat_json("-f", "-t")
 
     for job_id, jdict in response.get("Jobs", {}).items():
+        job_id = job_id.split(".")[0]
 
         job_state = jdict.get("job_state")
         if not job_state:
@@ -320,7 +323,11 @@ def parse_jobs(
 
         colocated = rdict["place"].get("grouping") == "group=group_id"
 
-        node_count: int = 0
+        # pack jobs do not need to define node_count
+        node_count = 0
+        if pack == PackingStrategy.SCATTER or is_smp:
+            print("RDH", rdict)
+            node_count = int(rdict["nodect"])
 
         # SMP style jobs
         is_smp = rdict["place"].get("grouping") == "host"
@@ -329,24 +336,29 @@ def parse_jobs(
 
         for n, chunk_base in enumerate(rdict["select"]):
             chunk: Dict[str, Any] = {}
-            chunk.update(chunk_base)
             chunk.update(rdict)
+            # do this _after_ rdict, since the chunks
+            # will override the top level resources
+            # e.g. notice that ncpus=4. This will be the rdict value
+            # but the chunks have ncpus=2
+            # Resource_List.ncpus = 4
+            # Resource_List.nodect = 2
+            # Resource_List.select = 2:ncpus=2
+
+            chunk.update(chunk_base)
             working_constraint: Dict[str, Any] = {}
             constraints = [working_constraint]
 
             if colocated:
                 working_constraint["in-a-placement-group"] = True
 
-            # pack jobs do not need to define node_count
-            node_count = 0
-            if pack == PackingStrategy.SCATTER or is_smp:
-                print("RDH", chunk_base)
-                node_count = int(chunk_base["select"])
-
             my_job_id = job_id
             if len(rdict["select"]) > 1:
-                job_index, host = job_id.split(".", 1)
-                my_job_id = "{}+{}.{}".format(job_index, n, host)
+                if "." in job_id:
+                    job_index, host = job_id.split(".", 1)
+                    my_job_id = "{}+{}.{}".format(job_index, n, host)
+                else:
+                    my_job_id = "{}+{}".format(job_id, n)
 
             if sharing == "excl":
                 working_constraint["exclusive-task"] = True
@@ -359,7 +371,7 @@ def parse_jobs(
             job_resources = {}
 
             for rname, rvalue in chunk.items():
-                if rname in ["select", "place"]:
+                if rname in ["select", "place", "nodect"]:
                     continue
 
                 if rname not in resources_for_scheduling:
@@ -370,7 +382,9 @@ def parse_jobs(
                     )
                     continue
 
-                # add all resource requests here
+                # add all resource requests here. By that, I mean
+                # non resource requests, like exclusive, should be ignored
+                # required for get_non_host_constraints
                 job_resources[rname] = rvalue
 
                 resource_def = resource_definitions.get(rname)
@@ -446,8 +460,19 @@ def parse_scheduler_node(
         tok = tok.strip()
         if not tok:
             continue
-        job_id, sub_job_id = tok.rsplit("/", 1)
+        job_id_full, sub_job_id = tok.rsplit("/", 1)
+        sched_host = ""
+        if "." in job_id_full:
+            job_id, sched_host = job_id_full.split(".", 1)
+        else:
+            job_id = job_id_full
+
         node.assign(job_id)
+
+        if "job_ids_long" not in node.metadata:
+            node.metadata["job_ids_long"] = [job_id_full]
+        elif job_id_full not in node.metadata["job_ids_long"]:
+            node.metadata["job_ids_long"].append(job_id_full)
 
     for res_name, value in res_assigned.items():
         resource = resource_definitions.get(res_name)

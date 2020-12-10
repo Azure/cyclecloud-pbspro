@@ -7,10 +7,7 @@ import os
 import subprocess
 import traceback
 
-try:
-    import pbs
-except ImportError:
-    import mockpbs as pbs
+import pbs
 
 
 def perform_hook():

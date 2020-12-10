@@ -48,8 +48,6 @@ class PBSProQueue:
             "total_jobs": "0",
             "state_count": "Transit:0 Queued:0 Held:0 Waiting:0 Running:0 Exiting:0 Begun:0",
             "resources_default.place": "scatter",
-            "resources_default.ungrouped": "false",
-            "default_chunk.ungrouped": "false",
             "enabled": "True",
             "started": "True",
         },"""

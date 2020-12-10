@@ -16,22 +16,17 @@ function create_resource() {
 
 create_resource slot_type string
 create_resource group_id string
-create_resource ungrouped boolean
 create_resource instance_id string
-create_resource machinetype string
+create_resource vm_size string
 create_resource nodearray string
 create_resource disk size
-create_resource ngpus size
+create_resource ngpus long
 
-/opt/pbs/bin/qmgr -c "set queue workq resources_default.ungrouped = false"
 /opt/pbs/bin/qmgr -c "set queue workq resources_default.place = scatter"
-/opt/pbs/bin/qmgr -c "set queue workq default_chunk.ungrouped = false"
 
 /opt/pbs/bin/qmgr -c "create queue htcq"
 /opt/pbs/bin/qmgr -c "set queue htcq queue_type = Execution"
-/opt/pbs/bin/qmgr -c "set queue htcq resources_default.ungrouped = true"
 /opt/pbs/bin/qmgr -c "set queue htcq resources_default.place = pack"
-/opt/pbs/bin/qmgr -c "set queue htcq default_chunk.ungrouped = true"
 /opt/pbs/bin/qmgr -c "set queue htcq enabled = true"
 /opt/pbs/bin/qmgr -c "set queue htcq started = true"
 

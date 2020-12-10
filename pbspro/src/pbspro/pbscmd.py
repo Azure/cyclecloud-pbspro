@@ -40,7 +40,6 @@ class PBSCMD:
             attempts -= 1
             expr = expr[expr.index("{") :]
             try:
-                print("Expression is '{}'".format(expr))
                 return json.loads(expr)
             except JSONDecodeError as e:
                 logging.error(e)

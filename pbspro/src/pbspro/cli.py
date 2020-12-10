@@ -22,7 +22,7 @@ class PBSCLI(clilib.CommonCLI):
         # bootstrap parser
         set_pbspro_parser(PBSProParser({}))
         self.pbscmd = PBSCMD(get_pbspro_parser())
-    
+
     def _initialize(self, command: str, config: Dict) -> None:
 
         resource_definitions = read_resource_definitions(self.pbscmd, config)
@@ -52,20 +52,26 @@ class PBSCLI(clilib.CommonCLI):
                 else:
                     resource_columns.append(res_name)
 
+        resource_columns = [
+            r
+            for r in resource_columns
+            if r not in ["aoe", "instance_id", "vnode", "host", "arch", "vm_size"]
+        ]
+
         return config.get(
             "output_columns",
             [
                 "name",
                 "hostname",
+                "pbs_state",
                 "job_ids",
+                "state",
             ]
             + resource_columns
             + [
-                "exists",
+                "instance_id[:11]",
                 "required",
                 "managed",
-                "vm_size",
-                "state",
                 "pg@placement_group",
                 "ccnodeid[-8:]",
                 "ctr@create_time_remaining",
@@ -73,10 +79,7 @@ class PBSCLI(clilib.CommonCLI):
             ],
         )
 
-    def shell_parser(self, parser: ArgumentParser) -> None:
-        parser.set_defaults(read_only=False)
-
-    def shell(self, config: Dict) -> None:
+    def _setup_shell_locals(self, config: Dict) -> Dict:
         """
         Provides read only interactive shell. type pbsprohelp()
         in the shell for more information
@@ -133,7 +136,7 @@ class PBSCLI(clilib.CommonCLI):
             "pbsprohelp": pbsprohelp,
         }
 
-        clilib.shell(config, pbsprohelp, shell_locals)
+        return shell_locals
 
 
 def main(argv: Iterable[str] = None) -> None:

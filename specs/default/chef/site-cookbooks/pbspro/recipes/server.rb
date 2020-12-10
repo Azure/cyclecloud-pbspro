@@ -28,10 +28,18 @@ else
   end
 end
 
-directory "#{node[:cyclecloud][:bootstrap]}/pbs" do
+directory "#{node[:pbspro][:autoscale_project_home]}" do
   owner "root"
   group "root"
   mode "0755"
+  action :create
+end
+
+cookbook_file "#{node[:pbspro][:autoscale_project_home]}/logging.conf" do
+  source "logging.conf"
+  mode "0644"
+  owner "root"
+  group "root"
   action :create
 end
 
@@ -75,6 +83,49 @@ execute "serverconfig" do
   command "/var/spool/pbs/doqmgr.sh && /var/spool/pbs/modify_limits.sh && touch /etc/qmgr.config"
   creates "/etc/qmgr.config"
   notifies :restart, 'service[pbs]', :delayed
+end
+
+
+bash 'setup cyclecloud-pbspro' do
+  code <<-EOH
+  set -e
+
+  cd #{node[:cyclecloud][:bootstrap]}/
+
+  rm -f #{node[:pbspro][:autoscale_installer]} 2> /dev/null
+
+  jetpack download #{node[:pbspro][:autoscale_installer]} --project pbspro ./
+   
+  tar xzf #{node[:pbspro][:autoscale_installer]}
+
+  cd cyclecloud-pbspro/
+  
+  INSTALLDIR=#{node[:pbspro][:autoscale_project_home]}
+  mkdir -p $INSTALLDIR/venv
+  ./install.sh --install-python3 --venv $INSTALLDIR/venv
+  
+cat > /etc/profile.d/azpbs_autocomplete.sh <<EOF
+  #!/usr/bin/env bash
+  eval "\$(/opt/cycle/pbspro/venv/bin/register-python-argcomplete azpbs)" || echo "Warning: Autocomplete is disabled" 1>&2
+EOF
+  
+  
+  azpbs initconfig --cluster-name #{node[:cyclecloud][:cluster][:name]} \
+                  --username     #{node[:cyclecloud][:config][:username]} \
+                  --password     #{node[:cyclecloud][:config][:password]} \
+                  --url          #{node[:cyclecloud][:config][:web_server]} \
+                  --lock-file    $INSTALLDIR/scalelib.lock \
+                  --log-config   $INSTALLDIR/logging.conf \
+                  --disable-default-resources \
+                  --default-resource '{"select": {}, "name": "ncpus", "value": "node.pcpu_count"}' \
+                  --default-resource '{"select": {}, "name": "disk", "value": "20g"}' \
+                  --default-resource '{"select": {}, "name": "host", "value": "node.hostname"}' \
+                  --default-resource '{"select": {}, "name": "slot_type", "value": "node.nodearray"}' \
+                  --default-resource '{"select": {}, "name": "mem", "value": "node.memory"}' \
+                  --default-resource '{"select": {}, "name": "vm_size", "value": "node.vm_size"}' \
+                  --idle-timeout #{node[:pbspro][:idle_timeout]}
+  EOH
+  action :run
 end
 
 include_recipe "pbspro::autostart"
