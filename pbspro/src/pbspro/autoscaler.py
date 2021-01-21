@@ -3,13 +3,13 @@ import sys
 from argparse import ArgumentParser
 from typing import Any, Dict, List, Optional
 
+import hpc.autoscale.job.driver
 from hpc.autoscale import hpclogging as logging
 from hpc.autoscale.job import demandcalculator as dcalclib
 from hpc.autoscale.job import demandprinter
 from hpc.autoscale.job.demand import DemandResult
 from hpc.autoscale.job.demandcalculator import DemandCalculator
-from hpc.autoscale.node.nodehistory import NodeHistory, SQLiteNodeHistory
-import hpc.autoscale.job.driver
+from hpc.autoscale.node.nodehistory import NodeHistory
 from hpc.autoscale.node.nodemanager import new_node_manager
 from hpc.autoscale.results import DefaultContextHandler, register_result_handler
 from hpc.autoscale.util import SingletonLock, json_load
@@ -53,25 +53,8 @@ def autoscale_pbspro(
 
     logging.debug("Driver = %s", pbs_driver)
 
-    # TODO RDH
-    # invalid_nodes: List[Node] = []
-
-    # for node in pbs_env.scheduler_nodes:
-    #     # many combinations of a u and other states. However,
-    #     # as long as a and u are in there it is down
-    #     assert False, "TODO RDH figure this out for PBS"
-    #     state = node.metadata.get("state", "")
-    #     if "a" in state and "u" in state:
-    #         invalid_nodes.append(node)
-
-    # # nodes in error state must also be deleted
-    # nodes_to_delete = pbs_driver.clean_hosts(invalid_nodes)
-    # for node in invalid_nodes:
-    #     pbs_env.delete_node(node)
-
     demand_calculator = calculate_demand(config, pbs_env, ctx_handler, node_history)
 
-    # TODO RDH
     pbs_driver.handle_failed_nodes(demand_calculator.node_mgr.get_failed_nodes())
 
     demand_result = demand_calculator.finish()
@@ -169,7 +152,6 @@ def new_demand_calculator(
     if node_history is None:
         node_history = pbs_driver.new_node_history(config)
 
-    # TODO RDH deal with disable_system_resources issue: get rid of arg and just
     # keep it as a config
     node_mgr = new_node_manager(config, existing_nodes=pbs_env.scheduler_nodes)
     pbs_driver.preprocess_node_mgr(config, node_mgr)

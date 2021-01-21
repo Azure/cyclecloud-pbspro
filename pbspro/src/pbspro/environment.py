@@ -6,7 +6,7 @@ from hpc.autoscale.node.node import Node
 
 from pbspro.driver import PBSProDriver
 from pbspro.pbscmd import PBSCMD
-from pbspro.queue import PBSProQueue
+from pbspro.pbsqueue import PBSProQueue
 from pbspro.resource import PBSProResourceDefinition
 from pbspro.scheduler import PBSProScheduler
 

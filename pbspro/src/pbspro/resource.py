@@ -1,15 +1,15 @@
-from abc import abstractmethod
 import os
-from typing import Any, Dict
+from abc import abstractmethod
+from subprocess import CalledProcessError
+from typing import Any, Dict, List
 
 import typing_extensions
+from hpc.autoscale import hpclogging as logging
 from hpc.autoscale.hpctypes import Size as HPCSize
 from hpc.autoscale.hpctypes import add_magnitude_conversion
-from hpc.autoscale import hpclogging as logging
 from hpc.autoscale.node.constraints import SharedResource
 
 from pbspro.pbscmd import PBSCMD
-from subprocess import CalledProcessError
 
 add_magnitude_conversion("w", 8)
 add_magnitude_conversion("kb", 1 * 1024)
@@ -187,7 +187,9 @@ RESOURCE_TYPES: Dict[str, "ResourceType"] = {
 }
 
 
-def read_resource_definitions(pbscmd: PBSCMD, config: Dict) -> Dict[str, "PBSProResourceDefinition"]:
+def read_resource_definitions(
+    pbscmd: PBSCMD, config: Dict
+) -> Dict[str, "PBSProResourceDefinition"]:
     ret: Dict[str, PBSProResourceDefinition] = {}
     res_dicts = pbscmd.qmgr_parsed("list", "resource")
 
@@ -195,7 +197,7 @@ def read_resource_definitions(pbscmd: PBSCMD, config: Dict) -> Dict[str, "PBSPro
 
     # TODO I believe this is the only one, but leaving a config option
     # as a backup plan
-    read_only = config.get("pbspro", {}).get("read_only_resources", ["host"])
+    read_only = config.get("pbspro", {}).get("read_only_resources", ["host", "vnode"])
 
     def_sched = pbscmd.qmgr_parsed("list", "sched", "default")
     sched_priv = def_sched[0]["sched_priv"]
@@ -239,12 +241,12 @@ class PBSProResourceDefinition:
     ) -> None:
         self.name = name
         self.type = resource_type
-        self.flag = flag
+        self.flag = "".join(sorted(flag))
         self.read_only = False
 
     @property
     def is_consumable(self) -> bool:
-        return self.flag in ["fh", "nh", "q"]
+        return self.flag in ["fh", "hn", "q", "hmnq"]
 
     @property
     def is_host(self) -> bool:
@@ -261,7 +263,7 @@ class ResourceState:
         self,
         resources_available: Dict[str, Any],
         resources_assigned: Dict[str, Any],
-        shared_resources: Dict[str, SharedResource],
+        shared_resources: Dict[str, List[SharedResource]],
     ) -> None:
         self.resources_available = resources_available
         self.resources_assigned = resources_assigned

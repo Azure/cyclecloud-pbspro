@@ -1,27 +1,25 @@
+import socket
+from functools import lru_cache
 from subprocess import CalledProcessError, SubprocessError
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from hpc.autoscale import hpclogging as logging
 from hpc.autoscale import hpctypes as ht
+from hpc.autoscale.job.driver import SchedulerDriver
 from hpc.autoscale.job.job import Job, PackingStrategy
 from hpc.autoscale.job.nodequeue import NodeQueue
 from hpc.autoscale.job.schedulernode import SchedulerNode
 from hpc.autoscale.node.constraints import SharedResource
 from hpc.autoscale.node.node import Node
+from hpc.autoscale.node.nodemanager import NodeManager
 from hpc.autoscale.results import EarlyBailoutResult
-from hpc.autoscale.job.driver import SchedulerDriver
-
 
 from pbspro.constants import PBSProJobStates
 from pbspro.parser import get_pbspro_parser
 from pbspro.pbscmd import PBSCMD
-from pbspro.queue import PBSProQueue, read_queues
+from pbspro.pbsqueue import PBSProQueue, read_queues
 from pbspro.resource import PBSProResourceDefinition
 from pbspro.scheduler import PBSProScheduler, read_schedulers
-from functools import lru_cache
-from hpc.autoscale.node.nodemanager import NodeManager
-from numbers import Number
-
 
 # sched_config = "/var/spool/pbs/sched_priv/sched_config"
 
@@ -31,6 +29,11 @@ class PBSEnvironmentError(RuntimeError):
 
 
 class PBSProDriver(SchedulerDriver):
+    """
+    The main interface for interacting with the PBS system and also
+    overrides the generic SchedulerDriver with PBS specific behavior.
+    """
+
     def __init__(
         self,
         pbscmd: Optional[PBSCMD] = None,
@@ -71,10 +74,12 @@ class PBSProDriver(SchedulerDriver):
         """
         Placeholder for subclasses to customize config dynamically
         """
-        # TODO RDH maybe add default resource for ccnodeid?
         return config
 
     def preprocess_node_mgr(self, config: Dict, node_mgr: NodeManager) -> None:
+        """
+        We add a default resource to map group_id to node.placement_group
+        """
         super().preprocess_node_mgr(config, node_mgr)
         node_mgr.add_default_resource({}, "group_id", "node.placement_group")
 
@@ -86,6 +91,16 @@ class PBSProDriver(SchedulerDriver):
 
         ret = []
         for node in nodes:
+            if not node.hostname:
+                continue
+
+            if not self._validate_reverse_dns(node):
+                logging.fine(
+                    "%s still has a hostname that can not be looked via reverse dns. This should repair itself.",
+                    node,
+                )
+                continue
+
             if not node.resources.get("ccnodeid"):
                 logging.info(
                     "%s is not managed by CycleCloud, or at least 'ccnodeid' is not defined. Ignoring",
@@ -122,7 +137,12 @@ class PBSProDriver(SchedulerDriver):
                         continue
 
                     if res_name not in self.resource_definitions:
-                        # TODO RDH add warning
+                        # TODO bump to a warning?
+                        logging.fine(
+                            "%s is an unknown PBS resource for node %s. Skipping this resource",
+                            res_name,
+                            node,
+                        )
                         continue
                     res_value_str: str
 
@@ -167,7 +187,7 @@ class PBSProDriver(SchedulerDriver):
         return nodes
 
     def handle_draining(self, nodes: List[Node]) -> List[Node]:
-        # TODO RDH batch these up, but keep it underneath the
+        # TODO batch these up, but keep it underneath the
         # max arg limit
         ret = []
         for node in nodes:
@@ -175,9 +195,15 @@ class PBSProDriver(SchedulerDriver):
                 logging.info("Node %s has no hostname.", node)
                 continue
 
-            # TODO RDH implement after we have resources added back in
+            # TODO implement after we have resources added back in
+            # what about deleting partially initialized nodes? I think we
+            # just need to skip non-managed nodes
             # if not node.resources.get("ccnodeid"):
             #     continue
+
+            if not node.managed:
+                logging.debug("Ignoring attempt to drain unmanaged %s", node)
+                continue
 
             if "offline" in node.metadata.get("pbs_state", ""):
                 if node.assignments:
@@ -190,6 +216,9 @@ class PBSProDriver(SchedulerDriver):
             else:
                 try:
                     self.pbscmd.pbsnodes("-o", node.hostname)
+                    response = self.pbscmd.pbsnodes_parsed("-a", node.hostname)
+                    if response:
+                        node.metadata["pbs_state"] = response[0]["state"]
                 except CalledProcessError as e:
                     logging.error(
                         "'pbsnodes -o %s' failed and this node will not be scaled down: %s",
@@ -203,6 +232,15 @@ class PBSProDriver(SchedulerDriver):
         for node in nodes:
             if not node.hostname:
                 continue
+            try:
+                self.pbscmd.qmgr("list", "node", node.hostname)
+            except CalledProcessError as e:
+                if "Server has no node list" in str(e):
+                    ret.append(node)
+                    continue
+                logging.error("Could not list node with hostname %s - %s", node.hostname, e)
+                continue
+                 
             try:
                 self.pbscmd.qmgr("delete", "node", node.hostname)
                 ret.append(node)
@@ -268,10 +306,56 @@ class PBSProDriver(SchedulerDriver):
     ) -> List[Node]:
         return parse_scheduler_nodes(self.pbscmd, self.resource_definitions)
 
+    def _validate_reverse_dns(self, node: Node) -> bool:
+        # let's make sure the hostname is valid and reverse
+        # dns compatible before adding to GE
+        try:
+            addr_info = socket.gethostbyaddr(node.private_ip)
+        except Exception as e:
+            logging.error(
+                "Could not convert private_ip(%s) to hostname using gethostbyaddr() for %s: %s",
+                node.private_ip,
+                node,
+                str(e),
+            )
+            return False
+
+        addr_info_ips = addr_info[-1]
+        if isinstance(addr_info_ips, str):
+            addr_info_ips = [addr_info_ips]
+
+        if node.private_ip not in addr_info_ips:
+            logging.warning(
+                "%s has a hostname that does not match the"
+                + " private_ip (%s) reported by cyclecloud (%s)! Skipping",
+                node,
+                addr_info_ips,
+                node.private_ip,
+            )
+            return False
+
+        addr_info_hostname = addr_info[0].split(".")[0]
+        if addr_info_hostname.lower() != node.hostname.lower():
+            logging.warning(
+                "%s has a hostname that can not be queried via reverse"
+                + " dns (private_ip=%s cyclecloud hostname=%s reverse dns hostname=%s)."
+                + " This is common and usually repairs itself. Skipping",
+                node,
+                node.private_ip,
+                node.hostname,
+                addr_info_hostname,
+            )
+            return False
+        return True
+
+    def __repr__(self) -> str:
+        return "PBSProDriver(res_def={})".format(self.resource_definitions)
+
 
 class PBSProNodeQueue(NodeQueue):
     def early_bailout(self, node: Node) -> EarlyBailoutResult:
         # TODO RDH if ncpus == 0
+        # because right now, we never bail out.
         # not great if jobs use n-1 ncpus...
         return super().early_bailout(node)
 
@@ -283,7 +367,7 @@ def parse_jobs(
     resources_for_scheduling: Set[str],
 ) -> List[Job]:
     """
-    TODO RDH
+    Parses PBS qstat output and creates relevant hpc.autoscale.job.job.Job objects
     """
     parser = get_pbspro_parser()
     # alternate format triggered by
@@ -303,6 +387,22 @@ def parse_jobs(
         if job_state != PBSProJobStates.Queued:
             continue
 
+        # ensure we don't autoscale jobs from disabled or non-started queues
+        qname = jdict.get("queue")
+        if not qname or qname not in queues:
+            logging.warning("queue was not defined for job %s: ignoring", job_id)
+            continue
+
+        queue: PBSProQueue = queues[qname]
+        if not queue.enabled:
+            logging.fine("Skipping job %s from disabled queue %s", job_id, qname)
+            continue
+
+        if not queue.started:
+            logging.fine("Skipping job %s from non-started queue %s", job_id, qname)
+            continue
+
+        # handle array vs individual jobs
         if jdict.get("array"):
             iterations = parser.parse_range_size(jdict["array_indices_submitted"])
             remaining = parser.parse_range_size(jdict["array_indices_remaining"])
@@ -322,21 +422,21 @@ def parse_jobs(
         )
 
         colocated = rdict["place"].get("grouping") == "group=group_id"
+        # SMP style jobs
+        is_smp = rdict["place"].get("grouping") == "host"
 
         # pack jobs do not need to define node_count
         node_count = 0
         if pack == PackingStrategy.SCATTER or is_smp:
-            print("RDH", rdict)
             node_count = int(rdict["nodect"])
-
-        # SMP style jobs
-        is_smp = rdict["place"].get("grouping") == "host"
 
         sharing = rdict["place"].get("sharing")
 
         for n, chunk_base in enumerate(rdict["select"]):
             chunk: Dict[str, Any] = {}
             chunk.update(rdict)
+            if "ncpus" not in chunk_base:
+                chunk["ncpus"] = chunk["ncpus"] // node_count
             # do this _after_ rdict, since the chunks
             # will override the top level resources
             # e.g. notice that ncpus=4. This will be the rdict value
@@ -363,10 +463,7 @@ def parse_jobs(
             if sharing == "excl":
                 working_constraint["exclusive-task"] = True
             elif sharing == "exclhost":
-                # TODO RDH
-                logging.warning("exclhost is not supported at this moment. Skipping")
-                continue
-                # constraints.append({"exclusive": True})
+                working_constraint["exclusive"] = True
 
             job_resources = {}
 
@@ -375,7 +472,6 @@ def parse_jobs(
                     continue
 
                 if rname not in resources_for_scheduling:
-                    # TODO RDH
                     logging.warning(
                         "Ignoring resource %s as it was not defined in sched_config",
                         rname,
@@ -403,12 +499,6 @@ def parse_jobs(
                     working_constraint = {rname: rvalue}
                     constraints.append(working_constraint)
 
-            qname = jdict.get("queue")
-            if not qname or qname not in queues:
-                logging.warning("queue was not defined for job %s: ignoring", job_id)
-                continue
-
-            queue: PBSProQueue = queues[qname]
             queue_constraints = queue.get_non_host_constraints(job_resources)
             constraints.extend(queue_constraints)
 
@@ -430,11 +520,21 @@ def parse_scheduler_nodes(
     pbscmd: PBSCMD, resource_definitions: Dict[str, PBSProResourceDefinition]
 ) -> List[Node]:
     """
-    TODO RDH
+    Gets the current state of the nodes as the scheduler sees them, including resources,
+    assigned resources, jobs currently running etc.
     """
     ret: List[Node] = []
     for ndict in pbscmd.pbsnodes_parsed("-a"):
-        ret.append(parse_scheduler_node(ndict, resource_definitions))
+        node = parse_scheduler_node(ndict, resource_definitions)
+
+        if not node.available.get("ccnodeid"):
+            node.metadata["override_resources"] = False
+            logging.fine(
+                "'ccnodeid' is not defined so %s has not been joined to the cluster by the autoscaler"
+                + " yet or this is not a CycleCloud managed node",
+                node,
+            )
+        ret.append(node)
     return ret
 
 
@@ -442,7 +542,7 @@ def parse_scheduler_node(
     ndict: Dict[str, Any], resource_definitions: Dict[str, PBSProResourceDefinition]
 ) -> SchedulerNode:
     """
-    TODO RDH
+    Implementation of parsing a single scheduler node.
     """
     parser = get_pbspro_parser()
 
@@ -451,10 +551,12 @@ def parse_scheduler_node(
     res_assigned = parser.parse_resources_assigned(ndict, filter_is_host=True)
 
     node = SchedulerNode(hostname, res_avail)
-
-    node.metadata["pbs_state"] = ndict.get("state")
-
     jobs_expr = ndict.get("jobs", "")
+
+    state = ndict.get("state") or ""
+    if state == "free" and jobs_expr.strip():
+        state = "partially-free"
+    node.metadata["pbs_state"] = state
 
     for tok in jobs_expr.split(","):
         tok = tok.strip()

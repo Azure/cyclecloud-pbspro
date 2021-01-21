@@ -8,10 +8,10 @@ import tarfile
 import tempfile
 from argparse import Namespace
 from subprocess import check_call
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-SCALELIB_VERSION = "0.1.3"
-CYCLECLOUD_API_VERSION = "8.0.1"
+SCALELIB_VERSION = "0.2.0"
+CYCLECLOUD_API_VERSION = "8.1.0"
 
 
 def build_sdist() -> str:
@@ -123,8 +123,23 @@ def execute() -> None:
     check_call(["pip", "download"] + packages, cwd=build_dir)
 
     print("Using build dir", build_dir)
+    by_package: Dict[str, List[str]] = {}
     for fil in os.listdir(build_dir):
-        if fil.startswith("certifi-2019"):
+        toks = fil.split("-", 1)
+        package = toks[0]
+        if package == "cyclecloud":
+            package = "{}-{}".format(toks[0], toks[1])
+        if package not in by_package:
+            by_package[package] = []
+        by_package[package].append(fil)
+
+    for package, fils in by_package.items():
+        if len(fils) > 1:
+            print("WARNING: Ignoring duplicate package found:", package, fils)
+            assert False
+
+    for fil in os.listdir(build_dir):
+        if fil.startswith("certifi-20"):
             print("WARNING: Ignoring duplicate certifi {}".format(fil))
             continue
         path = os.path.join(build_dir, fil)

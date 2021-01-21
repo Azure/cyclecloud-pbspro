@@ -3,6 +3,7 @@ from typing import Dict, Tuple
 
 from hpc.autoscale.hpctypes import Hostname
 from hpc.autoscale.util import partition_single
+from hpc.autoscale import hpclogging as logging
 
 from pbspro.constants import ServerStates
 from pbspro.parser import get_pbspro_parser
@@ -11,17 +12,19 @@ from pbspro.resource import BooleanType, PBSProResourceDefinition, ResourceState
 
 
 class PBSProScheduler:
-    # TODO RDH should standardize on resources_* parsing and converting
-    # to shared_resources
     def __init__(
         self,
         sched_dict: Dict[str, str],
         resource_state: ResourceState,
     ) -> None:
         btype = BooleanType()
-        self.do_not_span_psets = btype.parse(sched_dict.get("do_not_span_psets", "false"))
+        self.do_not_span_psets = btype.parse(
+            sched_dict.get("do_not_span_psets", "false")
+        )
         self.scheduling = btype.parse(sched_dict["scheduling"])
-        self.only_explicit_psets = btype.parse(sched_dict.get("only_explicit_psets", "false"))
+        self.only_explicit_psets = btype.parse(
+            sched_dict.get("only_explicit_psets", "false")
+        )
         self.sched_log = sched_dict["sched_log"]
         self.sched_priv = sched_dict["sched_priv"]
         priv_config_path = os.path.join(self.sched_priv, "sched_config")
@@ -41,9 +44,9 @@ class PBSProScheduler:
         self.sched_dict = sched_dict
 
         if not self.only_explicit_psets:
-            raise RuntimeError(
-                """only_explicit_psets must be set to true. You can change this by running:" +
-                                " qmgr -c "set sched default only_explicit_psets = true"""
+            logging.error(
+                "only_explicit_psets must be set to true. You can change this by running:"
+                + ' qmgr -c "set sched default only_explicit_psets = true'
             )
 
     @property

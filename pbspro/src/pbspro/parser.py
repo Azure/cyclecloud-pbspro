@@ -8,8 +8,8 @@ from hpc.autoscale.node import constraints as conslib
 from pbspro.util import filter_host_resources, filter_non_host_resources
 
 if typing.TYPE_CHECKING:
-    from pbspro.queue import StateCountType
-    from pbspro.queue import PBSProLimit
+    from pbspro.pbsqueue import StateCountType
+    from pbspro.pbsqueue import PBSProLimit
     from pbspro.resource import (
         PBSProResourceDefinition,
         ResourceState,
@@ -37,7 +37,7 @@ class PBSProParser:
         ret: Dict[str, Any] = {}
 
         if "select" in raw_dict:
-            ret["select"] = self.parse_select(raw_dict["select"])
+            ret["select"] = self.parse_select(str(raw_dict["select"]))
 
         if "place" in raw_dict:
             ret["place"] = self.parse_place(raw_dict["place"])
@@ -77,6 +77,7 @@ class PBSProParser:
 
     def parse_select(self, select_expression: str) -> List[Dict[str, Any]]:
         # Need to detect when slot_type is specified with `-l select=1:slot_type`
+        assert isinstance(select_expression, str)
         chunks: List[Dict[str, Any]] = []
 
         for chunk_expr in select_expression.split("+"):
@@ -180,7 +181,7 @@ class PBSProParser:
 
     def parse_state_counts(self, expr: str) -> Dict["StateCountType", int]:
         # avoid circular imports, as parser is a singleton used in multiple places
-        from pbspro.queue import StateCounts
+        from pbspro.pbsqueue import StateCounts
 
         ret: Dict["StateCountType", int] = {}
         kv_toks = expr.split()
@@ -247,10 +248,18 @@ class PBSProParser:
         ret = []
         current_record: Dict[str, str] = {}
 
-        for line in raw_output.splitlines():
+        line_continued: str = ""
+        for n, line in enumerate(raw_output.splitlines()):
             line = line.strip()
             if line.startswith("#"):
                 continue
+
+            if line.endswith(","):
+                line_continued = line_continued + line
+                continue
+            else:
+                line = line_continued + line
+                line_continued = ""
 
             if not line:
                 if current_record:
@@ -268,6 +277,12 @@ class PBSProParser:
                 current_record["obj_type"] = obj_type
                 current_record["name"] = obj_name
             else:
+                assert (
+                    "=" in line
+                ), "{} has no = in it. Line {} of the following:\n{}".format(
+                    line, n + 1, raw_output
+                )
+
                 key, value = line.split("=", 1)
                 key, value = key.strip(), value.strip()
                 current_record[key] = value
@@ -279,7 +294,7 @@ class PBSProParser:
 
     def parse_limit_expression(self, expr: str) -> "PBSProLimit":
         # avoid circular import
-        from pbspro.queue import PBSProLimit
+        from pbspro.pbsqueue import PBSProLimit
 
         ret = PBSProLimit()
         expr = expr.replace('"', "")

@@ -24,19 +24,19 @@ def test_parse_defaults(parser: PBSProParser) -> None:
         "total_jobs": "0",
         "state_count": "Transit:0 Queued:0 Held:0 Waiting:0 Running:0 Exiting:0 Begun:0",
         "resources_default.place": "scatter",
-        "resources_default.ungrouped": "false",
-        "default_chunk.ungrouped": "false",
+        "resources_default.abc": "false",
+        "default_chunk.abc": "true",
         "resources_available.qres": 100,
         "enabled": "True",
         "started": "True",
     }
 
-    expected = {"place": "scatter", "ungrouped": False}
+    expected = {"place": "scatter", "abc": False}
 
     actual = parser.parse_resources_default(qdict)
     assert actual == expected
     actual = parser.parse_default_chunk(qdict)
-    assert {"ungrouped": False} == actual
+    assert {"abc": True} == actual
     assert {"qres": 100} == parser.parse_resources_available(qdict)
 
 

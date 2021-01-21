@@ -8,9 +8,7 @@ from pbspro.resource import RESOURCE_TYPES, PBSProResourceDefinition
 def parser() -> PBSProParser:
     return PBSProParser(
         {
-            "ungrouped": PBSProResourceDefinition(
-                "ungrouped", RESOURCE_TYPES["boolean"], "h"
-            ),
+            "abc": PBSProResourceDefinition("abc", RESOURCE_TYPES["boolean"], "h"),
             "qres": PBSProResourceDefinition("qres", RESOURCE_TYPES["long"], "q"),
             "ncpus": PBSProResourceDefinition("ncpus", RESOURCE_TYPES["long"], "nh"),
         }

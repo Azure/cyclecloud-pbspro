@@ -97,7 +97,7 @@ describe 'pbspro::scheduler' do
           expect(chef_run).to start_service("pbs")
         end
 
-        ['pbspro::autostart', 'pbspro::submit_hook'].each do |recipe|
+        ['pbspro::autoscale', 'pbspro::submit_hook'].each do |recipe|
           it "includes #{recipe}" do
             expect(chef_run).to include_recipe(recipe)
           end

@@ -11,15 +11,12 @@ import traceback
 import pbs
 
 
-CLI = "azpbs"
-
-
 def debug(msg):
-    pbs.logmsg(pbs.EVENT_DEBUG, "cycle_autoscale - %s" % msg)
+    pbs.logmsg(pbs.EVENT_DEBUG, "azpbs_autoscale - %s" % msg)
 
 
 def error(msg):
-    pbs.logmsg(pbs.EVENT_ERROR, "cycle_autoscale - %s" % msg)
+    pbs.logmsg(pbs.EVENT_ERROR, "azpbs_autoscale - %s" % msg)
 
 
 def perform_hook():
@@ -33,9 +30,9 @@ def perform_hook():
         with open(pbs.hook_config_filename) as fr:
             hook_config = json.load(fr)
 
-        azpbs_path = shutil.which(CLI)
+        azpbs_path = shutil.which("azpbs")
         if not azpbs_path:
-            default_azpbs_path = "/opt/cycle/pbspro/venv/bin/" + CLI
+            default_azpbs_path = "/opt/cycle/pbspro/venv/bin/azpbs"
             if not os.path.exists(default_azpbs_path):
                 raise RuntimeError("Could not find azpbs in the path: %s" % os.environ)
             debug("Using default az path: %s" % default_azpbs_path)
@@ -68,7 +65,7 @@ def perform_hook():
         debug(stderr)
         if proc.returncode != 0:
             raise RuntimeError(
-                'autostart failed!\n\tstdout="%s"\n\tstderr="%s"' % (stdout, stderr)
+                'autoscale failed!\n\tstdout="%s"\n\tstderr="%s"' % (stdout, stderr)
             )
     except Exception as e:
         error(str(e))

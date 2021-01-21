@@ -5,8 +5,8 @@
 
 project_home="#{node[:cyclecloud][:home]}/../pbspro"
 
-cookbook_file "#{project_home}/autostart_hook.py" do
-  source "autostart_hook.py"
+cookbook_file "#{project_home}/autoscale_hook.py" do
+  source "autoscale_hook.py"
   mode "0755"
   owner "root"
   group "root"
@@ -23,7 +23,7 @@ bash "import autoscale hook" do
   code <<-EOH
     set -
     /opt/pbs/bin/qmgr -c "create hook autoscale" 1>&2 || true
-    /opt/pbs/bin/qmgr -c "import hook autoscale application/x-python default #{project_home}/autostart_hook.py"
+    /opt/pbs/bin/qmgr -c "import hook autoscale application/x-python default #{project_home}/autoscale_hook.py"
     /opt/pbs/bin/qmgr -c "import hook autoscale application/x-config default #{project_home}/hook_config.json"
     /opt/pbs/bin/qmgr -c "set hook autoscale event = periodic"
     /opt/pbs/bin/qmgr -c "set hook autoscale freq = 15"

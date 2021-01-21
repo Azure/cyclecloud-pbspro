@@ -10,23 +10,31 @@ set -e
 /opt/pbs/bin/qmgr -c 'set server flatuid = true'
 
 function create_resource() {
+	flag=""
+	if [ "$3" != "" ]; then
+		flag=", flag=$3"
+	fi
 	/opt/pbs/bin/qmgr -c "list resource $1" >/dev/null  2>/dev/null   || \
-	/opt/pbs/bin/qmgr -c "create resource $1 type=$2, flag=h"
+	/opt/pbs/bin/qmgr -c "create resource $1 type=$2 $flag"
 }
 
-create_resource slot_type string
-create_resource group_id string
-create_resource instance_id string
-create_resource vm_size string
-create_resource nodearray string
-create_resource disk size
-create_resource ngpus long
+create_resource slot_type string h
+create_resource group_id string h
+create_resource instance_id string h
+create_resource vm_size string h
+create_resource nodearray string h
 
-/opt/pbs/bin/qmgr -c "set queue workq resources_default.place = scatter"
+create_resource disk size nh
+create_resource ngpus long nh
+# no flag
+create_resource skipcyclesubhook boolean
+
+/opt/pbs/bin/qmgr -c "set queue workq resources_default.place = scatter:excl:group=group_id"
 
 /opt/pbs/bin/qmgr -c "create queue htcq"
 /opt/pbs/bin/qmgr -c "set queue htcq queue_type = Execution"
 /opt/pbs/bin/qmgr -c "set queue htcq resources_default.place = pack"
+/opt/pbs/bin/qmgr -c "set queue htcq resources_default.skipcyclesubhook = true"
 /opt/pbs/bin/qmgr -c "set queue htcq enabled = true"
 /opt/pbs/bin/qmgr -c "set queue htcq started = true"
 

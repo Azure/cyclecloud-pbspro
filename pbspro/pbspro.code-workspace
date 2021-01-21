@@ -1,9 +1,13 @@
 {
 	"folders": [
 		{
-			"path": ".",
+			"path": "pbspro",
 			"name": "pbspro"
-		}
+		},
+                {
+                        "path": "modules/cyclecloud-scalelib/src",
+                        "name": "scalelib"
+                }
 	],
 	"settings": {
 		"java.autobuild.enabled": false,
@@ -16,7 +20,7 @@
 		"python.testing.pytestArgs": [
 			"--rootdir=test"
 		],
-		"terminal.integrated.env.osx": {"PYTHONPATH": "src:test:/Users/ryhamel/code/cyclecloud-scalelib"}
+		"terminal.integrated.env.osx": {"PYTHONPATH": "pbspro/src:pbspro/test:modules/cyclecloud-scalelib/src"}
 	},
 	
 }

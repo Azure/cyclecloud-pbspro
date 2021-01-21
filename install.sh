@@ -2,7 +2,7 @@
 
 SCHEDULER=pbspro
 INSTALL_PYTHON3=0
-USE_JETPACK_PYTHON3=0
+DISABLE_CRON=0
 INSTALL_VIRTUALENV=0
 VENV=/opt/cycle/${SCHEDULER}/venv
 
@@ -14,19 +14,18 @@ while (( "$#" )); do
             INSTALL_VIRTUALENV=1
             shift
             ;;
-        --use-jetpack-python3)
-            USE_JETPACK_PYTHON3=1
-            shift
-            ;;
         --install-venv)
             INSTALL_VIRTUALENV=1
+            shift
+            ;;
+        --disable-cron)
+            DISABLE_CRON=1
             shift
             ;;
         --venv)
             VENV=$2
             shift 2
             ;;
-
         -*|--*=)
             echo "Unknown option $1" >&2
             exit 1
@@ -92,16 +91,16 @@ azpbs -h 2>&1 > /dev/null || exit 1
 
 ln -sf $VENV/bin/azpbs /usr/local/bin/
 
-echo 'azpbs' installed. A symbolic link was made to /usr/local/bin/azpbs
-crontab -l > /tmp/current_crontab
-grep -q 'Created by cyclecloud-${SCHEDULER} install.sh' /tmp/current_crontab
-if [ $? != 0 ]; then
-    echo \# Created by cyclecloud-${SCHEDULER} install.sh >> /tmp/current_crontab
-    echo '* * * * * . /etc/profile.d/sgesettings.sh && /usr/local/bin/azpbs autoscale -c /opt/cycle/${SCHEDULER}/autoscale.json' >> /tmp/current_crontab
-    crontab /tmp/current_crontab
-fi
-rm -f /tmp/current_crontab
+# echo 'azpbs' installed. A symbolic link was made to /usr/local/bin/azpbs
+# crontab -l > /tmp/current_crontab
+# grep -q "Created by cyclecloud-${SCHEDULER} install.sh" /tmp/current_crontab
+# if [ $? != 0 ]; then
+#     echo \# Created by cyclecloud-${SCHEDULER} install.sh >> /tmp/current_crontab
+#     echo '* * * * * /usr/local/bin/azpbs autoscale -c /opt/cycle/'${SCHEDULER}'/autoscale.json' >> /tmp/current_crontab
+#     crontab /tmp/current_crontab
+# fi
+# rm -f /tmp/current_crontab
 
-crontab -l | grep -q "Created by cyclecloud-${SCHEDULER} install.sh" && exit 0
-echo "Could not install cron job for autoscale!" >&2
-exit 1
+# crontab -l | grep -q "Created by cyclecloud-${SCHEDULER} install.sh" && exit 0
+# echo "Could not install cron job for autoscale!" >&2
+# exit 1

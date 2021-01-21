@@ -1,5 +1,10 @@
+import pytest
+from hpc.autoscale.job.schedulernode import SchedulerNode
+from hpc.autoscale.node.constraints import SharedConsumableResource
+
 from pbspro.parser import PBSProParser
-from pbspro.queue import PBSProLimit
+from pbspro.pbsqueue import PBSProLimit, PBSProQueue
+from pbspro.resource import LongType, PBSProResourceDefinition, ResourceState
 
 
 def test_parse_limit_expression(parser: PBSProParser) -> None:
@@ -51,4 +56,48 @@ def test_parse_limit_expression(parser: PBSProParser) -> None:
 def test_non_schedulable_shared_resources() -> None:
     # what if say, qres is created but is not used for scheduling
     # what happens if it hits the limit any ways?
-    assert False, "implement"
+
+    test_queue = PBSProQueue(
+        name="testq",
+        queue_type="execution",
+        total_jobs=0,
+        state_count={},
+        resources_default={},
+        default_chunk={},
+        resource_state=ResourceState(
+            resources_available={},
+            resources_assigned={},
+            shared_resources={
+                "qres": [
+                    SharedConsumableResource(
+                        resource_name="qres",
+                        source="queue",
+                        current_value=4,
+                        initial_value=4,
+                    )
+                ]
+            },
+        ),
+        resource_definitions={
+            "qres": PBSProResourceDefinition("qres", LongType(), flag="q")
+        },
+        enabled=True,
+        started=True,
+    )
+    non_host_cons = test_queue.get_non_host_constraints({"qres": 1, "other": 2})
+    assert len(non_host_cons) == 1
+    assert len(non_host_cons[0].shared_resources) == 1
+
+    assert non_host_cons[0].shared_resources[0].resource_name == "qres"
+    assert non_host_cons[0].shared_resources[0].initial_value == 4
+    assert non_host_cons[0].shared_resources[0].current_value == 4
+
+    assert test_queue.resource_state.shared_resources["qres"][0].current_value == 4
+    snode = SchedulerNode("localhost", {})
+    assert snode.decrement(non_host_cons)
+    assert test_queue.resource_state.shared_resources["qres"][0].current_value == 3
+
+
+@pytest.mark.skip
+def test_disabled_queues() -> None:
+    assert False

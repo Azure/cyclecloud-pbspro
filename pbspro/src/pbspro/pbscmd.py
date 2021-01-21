@@ -1,8 +1,7 @@
 import json
-import shlex
 from json.decoder import JSONDecodeError
 from shutil import which
-from subprocess import CalledProcessError, check_output, PIPE
+from subprocess import PIPE, CalledProcessError, check_output
 from typing import Dict, List
 
 from hpc.autoscale import hpclogging as logging
@@ -70,7 +69,7 @@ class PBSCMD:
     def _check_output(self, cmd: List[str]) -> str:
         logger = logging.getLogger("pbspro.driver")
 
-        logger.info("Running: %s", shlex_join(cmd))
+        logger.info("Running: %s", " ".join(cmd))
 
         try:
             ret = check_output(cmd, stderr=PIPE).decode()
@@ -79,7 +78,3 @@ class PBSCMD:
         except CalledProcessError as e:
             logger.debug(str(e))
             raise
-
-
-def shlex_join(cmd: List[str]) -> str:
-    return " ".join([shlex.quote(c) for c in cmd])
