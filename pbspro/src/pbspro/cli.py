@@ -27,6 +27,10 @@ class PBSCLI(clilib.CommonCLI):
         self.__pbs_env: Optional[environment.PBSProEnvironment] = None
         self.__driver: Optional[PBSProDriver] = None
 
+    def connect(self, config: Dict) -> None:
+        """Tests connection to CycleCloud"""
+        self._node_mgr(config)
+
     def _initialize(self, command: str, config: Dict) -> None:
 
         resource_definitions = read_resource_definitions(self.pbscmd, config)

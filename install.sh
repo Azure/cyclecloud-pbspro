@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+#
+set -e
+if [ $(whoami) != root ]; then
+  echo "Please run as root"
+  exit 1
+fi
 SCHEDULER=pbspro
 INSTALL_PYTHON3=0
-DISABLE_CRON=0
 INSTALL_VIRTUALENV=0
 VENV=/opt/cycle/${SCHEDULER}/venv
-
+export PATH=$PATH:/root/bin
 
 while (( "$#" )); do
     case "$1" in
@@ -16,10 +22,6 @@ while (( "$#" )); do
             ;;
         --install-venv)
             INSTALL_VIRTUALENV=1
-            shift
-            ;;
-        --disable-cron)
-            DISABLE_CRON=1
             shift
             ;;
         --venv)
@@ -89,18 +91,34 @@ chmod +x $VENV/bin/azpbs
 
 azpbs -h 2>&1 > /dev/null || exit 1
 
-ln -sf $VENV/bin/azpbs /usr/local/bin/
 
-# echo 'azpbs' installed. A symbolic link was made to /usr/local/bin/azpbs
-# crontab -l > /tmp/current_crontab
-# grep -q "Created by cyclecloud-${SCHEDULER} install.sh" /tmp/current_crontab
-# if [ $? != 0 ]; then
-#     echo \# Created by cyclecloud-${SCHEDULER} install.sh >> /tmp/current_crontab
-#     echo '* * * * * /usr/local/bin/azpbs autoscale -c /opt/cycle/'${SCHEDULER}'/autoscale.json' >> /tmp/current_crontab
-#     crontab /tmp/current_crontab
-# fi
-# rm -f /tmp/current_crontab
+if [ ! -e /root/bin ]; then
+    mkdir /root/bin
+fi
 
-# crontab -l | grep -q "Created by cyclecloud-${SCHEDULER} install.sh" && exit 0
-# echo "Could not install cron job for autoscale!" >&2
-# exit 1
+ln -sf $VENV/bin/azpbs /root/bin/
+
+INSTALL_DIR=$(dirname $VENV)
+
+echo Installing "autoscale" hook
+cat > $INSTALL_DIR/autoscale_hook_config.json<<EOF
+{
+    "azpbs_path": "$VENV/bin/azpbs",
+    "autoscale_json": "$INSTALL_DIR/autoscale.json"
+}
+EOF
+
+cp autoscale_hook.py $INSTALL_DIR/
+cp logging.conf $INSTALL_DIR/
+/opt/pbs/bin/qmgr -c "list hook autoscale" 1>&2 2>/dev/null || /opt/pbs/bin/qmgr -c "create hook autoscale" 1>&2
+/opt/pbs/bin/qmgr -c "import hook autoscale application/x-python default $INSTALL_DIR/autoscale_hook.py"
+/opt/pbs/bin/qmgr -c "import hook autoscale application/x-config default $INSTALL_DIR/autoscale_hook_config.json"
+/opt/pbs/bin/qmgr -c "set hook autoscale event = periodic"
+/opt/pbs/bin/qmgr -c "set hook autoscale freq = 15"
+
+if [ -e /etc/profile.d ]; then
+    cat > /etc/profile.d/azpbs_autocomplete.sh<<EOF
+which azpbs 2>/dev/null || export PATH=\$PATH:/root/bin
+eval "\$(/opt/cycle/pbspro/venv/bin/register-python-argcomplete azpbs)" || echo "Warning: Autocomplete is disabled" 1>&2
+EOF
+fi

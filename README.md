@@ -16,6 +16,48 @@ in CycleCloud by specifying the PBSPro OSS version.
    pbspro.version = 18.1.4-0
 ```
 
+## Installing Manually
+
+Note: When using the cluster that is shipped with CycleCloud, the autoscaler and default queues are already installed.
+
+First, download the installer pkg from GitHub. For example, you can download the [2.0.0 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/cyclecloud-pbspro-pkg-2.0.0.tar.gz)
+
+```bash
+# Prerequisite: python3, 3.6 or newer, must be installed and in the PATH
+wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/cyclecloud-pbspro-pkg-2.0.0.tar.gz
+tar xzf cyclecloud-pbspro-pkg-2.0.0.tar.gz
+cd cyclecloud-pbspro
+# Optional, but recommended. Adds relevant resources and enables strict placement
+./initialize_pbs.sh
+# Optional. Sets up workq as a colocated, MPI focused queue and creates htcq for non-MPI workloads.
+./initialize_default_queues.sh
+
+# Creates the azpbs autoscaler
+./install.sh  --venv /opt/cycle/pbspro/venv
+
+# If you have jetpack available, you may use the following:
+# ./generate_autoscale_json.sh --install-dir /opt/cycle/pbspro \
+#                              --username $(jetpack config cyclecloud.config.username) \
+#                              --password $(jetpack config cyclecloud.config.password) \
+#                              --url $(jetpack config cyclecloud.config.web_server) \
+#                              --cluster-name $(jetpack config cyclecloud.cluster.name)
+
+# Otherwise insert your username, password, url, and cluster name here.
+./generate_autoscale_json.sh --install-dir /opt/cycle/pbspro \
+                             --username user \
+                             --password password \
+                             --url https://fqdn:port \
+                             --cluster-name cluster_name
+
+# lastly, run this to understand any changes that may be required.
+# For example, you typically have to add the ungrouped and group_id resources
+# to the /var/spool/pbs/sched_priv/sched_priv file and restart.
+## [root@scheduler cyclecloud-pbspro]# azpbs validate
+## ungrouped is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_priv. Please add this and restart PBS
+## group_id is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_priv. Please add this and restart PBS
+azpbs validate
+```
+
 ## Autoscale and scalesets
 
 In order to try and ensure that the correct VMs are provisioned for different types of jobs, CycleCloud treats autoscale of MPI and serial jobs differently in OpenPBS clusters. 

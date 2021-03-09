@@ -134,6 +134,7 @@ def execute() -> None:
         by_package[package].append(fil)
 
     for package, fils in by_package.items():
+        
         if len(fils) > 1:
             print("WARNING: Ignoring duplicate package found:", package, fils)
             assert False
@@ -146,6 +147,11 @@ def execute() -> None:
         _add("packages/" + fil, path)
 
     _add("install.sh", mode=os.stat("install.sh")[0])
+    _add("initialize_pbs.sh", mode=os.stat("initialize_pbs.sh")[0])
+    _add("initialize_default_queues.sh", mode=os.stat("initialize_default_queues.sh")[0])
+    _add("generate_autoscale_json.sh", mode=os.stat("generate_autoscale_json.sh")[0])
+    _add("autoscale_hook.py", "pbspro/conf/autoscale_hook.py")
+    _add("logging.conf", "pbspro/conf/logging.conf")
 
 
 if __name__ == "__main__":

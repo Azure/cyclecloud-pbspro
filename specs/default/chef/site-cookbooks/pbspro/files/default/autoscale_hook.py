@@ -1,3 +1,4 @@
+
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 #
@@ -30,7 +31,9 @@ def perform_hook():
         with open(pbs.hook_config_filename) as fr:
             hook_config = json.load(fr)
 
-        azpbs_path = shutil.which("azpbs")
+        azpbs_path = hook_config.get("azpbs_path")
+        if not azpbs_path:
+            azpbs_path = shutil.which("azpbs")
         if not azpbs_path:
             default_azpbs_path = "/opt/cycle/pbspro/venv/bin/azpbs"
             if not os.path.exists(default_azpbs_path):
