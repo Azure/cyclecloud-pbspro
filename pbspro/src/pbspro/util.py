@@ -2,7 +2,7 @@ import typing
 from typing import Dict
 
 if typing.TYPE_CHECKING:
-    from pbspro.resource import PBSProResourceDefinition
+    from pbspro.resource import PBSProResourceDefinition  # noqa: F401
 
 
 def filter_host_resources(

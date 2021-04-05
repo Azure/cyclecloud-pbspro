@@ -42,10 +42,10 @@ def autoscale_pbspro(
     # interface to PBSPro, generally by cli
     if pbs_driver is None:
         # allow tests to pass in a mock
-        pbs_driver = PBSProDriver()
+        pbs_driver = PBSProDriver(config)
 
     if pbs_env is None:
-        pbs_env = envlib.from_driver(pbs_driver)
+        pbs_env = envlib.from_driver(config, pbs_driver)
 
     pbs_driver.initialize()
 
@@ -148,10 +148,10 @@ def new_demand_calculator(
     singleton_lock: Optional[SingletonLock] = None,
 ) -> DemandCalculator:
     if pbs_driver is None:
-        pbs_driver = PBSProDriver()
+        pbs_driver = PBSProDriver(config)
 
     if pbs_env is None:
-        pbs_env = envlib.from_driver(pbs_driver)
+        pbs_env = envlib.from_driver(config, pbs_driver)
 
     if node_history is None:
         node_history = pbs_driver.new_node_history(config)

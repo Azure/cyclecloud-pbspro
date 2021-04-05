@@ -44,8 +44,10 @@ class PBSProEnvironment:
     #     self.scheduler_nodes = [n for n in self.scheduler_nodes if n !=]
 
 
-def from_driver(pbs_driver: Optional[PBSProDriver] = None) -> PBSProEnvironment:
-    pbs_driver = pbs_driver or PBSProDriver()
+def from_driver(
+    config: Dict, pbs_driver: Optional[PBSProDriver] = None
+) -> PBSProEnvironment:
+    pbs_driver = pbs_driver or PBSProDriver(config)
 
     schedulers = pbs_driver.read_schedulers()
     default_schedulers = [s for s in schedulers.values() if s.is_default]

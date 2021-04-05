@@ -14,6 +14,7 @@ from hpc.autoscale.node.constraints import SharedResource
 from hpc.autoscale.node.node import Node
 from hpc.autoscale.node.nodemanager import NodeManager
 from hpc.autoscale.results import EarlyBailoutResult
+from hpc.autoscale.util import is_valid_hostname, partition
 
 from pbspro.constants import PBSProJobStates
 from pbspro.parser import get_pbspro_parser
@@ -37,11 +38,13 @@ class PBSProDriver(SchedulerDriver):
 
     def __init__(
         self,
+        config: Dict,
         pbscmd: Optional[PBSCMD] = None,
         resource_definitions: Optional[Dict[str, PBSProResourceDefinition]] = None,
         down_timeout: int = 300,
     ) -> None:
         super().__init__("pbspro")
+        self.config = config
         self.pbscmd = pbscmd or PBSCMD(get_pbspro_parser())
         self.__queues: Optional[Dict[str, PBSProQueue]] = None
         self.__shared_resources: Optional[Dict[str, SharedResource]]
@@ -110,7 +113,7 @@ class PBSProDriver(SchedulerDriver):
                 to_delete.append(node)
                 continue
 
-            if node.resources.get("ccnodeid"):
+            if not node.resources.get("ccnodeid"):
                 logging.fine(
                     "Attempting to delete %s but ccnodeid is not set yet.", node
                 )
@@ -119,7 +122,8 @@ class PBSProDriver(SchedulerDriver):
             job_state = node.metadata.get("pbs_state", "")
             if "down" in job_state:
                 node.closed = True
-                if "offline" in job_state:
+                # no private_ip == no dns entry, so we can safely remove it
+                if "offline" in job_state or not node.private_ip:
                     to_delete.append(node)
                 else:
                     if self._down_long_enough(now, node):
@@ -157,9 +161,39 @@ class PBSProDriver(SchedulerDriver):
     def add_nodes_to_cluster(self, nodes: List[Node]) -> List[Node]:
         self.initialize()
 
+        all_nodes = self.pbscmd.pbsnodes_parsed("-a")
+        by_ccnodeid = partition(
+            all_nodes, lambda x: x.get("resources_available.ccnodeid")
+        )
+
         ret = []
         for node in nodes:
             if not node.hostname:
+                continue
+
+            if not node.private_ip:
+                continue
+
+            node_id = node.delayed_node_id.node_id
+            if not node_id:
+                logging.error("%s does not have a nodeid! Skipping", node)
+                continue
+
+            if node_id in by_ccnodeid:
+                skip_node = False
+                for ndict in by_ccnodeid[node_id]:
+                    if ndict["name"].lower() != node.hostname.lower():
+                        logging.error(
+                            "Duplicate hostname found for the same node id! %s and %s. See 'valid_hostnames' in autoscale as a possible workaround.",
+                            node,
+                            ndict["name"],
+                        )
+                        skip_node = True
+                        break
+                if skip_node:
+                    continue
+
+            if not is_valid_hostname(self.config, node):
                 continue
 
             if not self._validate_reverse_dns(node):
@@ -278,7 +312,7 @@ class PBSProDriver(SchedulerDriver):
             # if not node.resources.get("ccnodeid"):
             #     continue
 
-            if not node.managed:
+            if not node.managed and not node.resources.get("ccnodeid"):
                 logging.debug("Ignoring attempt to drain unmanaged %s", node)
                 continue
 
@@ -303,11 +337,12 @@ class PBSProDriver(SchedulerDriver):
                     node.metadata["pbs_state"] = "offline"
 
                 except CalledProcessError as e:
-                    logging.error(
-                        "'pbsnodes -o %s' failed and this node will not be scaled down: %s",
-                        node.hostname,
-                        e,
-                    )
+                    if node.private_ip:
+                        logging.error(
+                            "'pbsnodes -o %s' failed and this node will not be scaled down: %s",
+                            node.hostname,
+                            e,
+                        )
         return ret
 
     def handle_post_delete(self, nodes: List[Node]) -> List[Node]:
@@ -405,6 +440,12 @@ class PBSProDriver(SchedulerDriver):
     def _validate_reverse_dns(self, node: Node) -> bool:
         # let's make sure the hostname is valid and reverse
         # dns compatible before adding to GE
+
+        # if there is no private ip, then the hostname was removed, most likely
+        # by azure DNS
+        if not node.private_ip:
+            return True
+
         try:
             addr_info = socket.gethostbyaddr(node.private_ip)
         except Exception as e:
@@ -430,17 +471,35 @@ class PBSProDriver(SchedulerDriver):
             )
             return False
 
+        expect_multiple_entries = (
+            node.software_configuration.get("cyclecloud", {})
+            .get("hosts", {})
+            .get("standalone_dns", {})
+            .get("enabled", True)
+        )
+
         addr_info_hostname = addr_info[0].split(".")[0]
         if addr_info_hostname.lower() != node.hostname.lower():
-            logging.warning(
-                "%s has a hostname that can not be queried via reverse"
-                + " dns (private_ip=%s cyclecloud hostname=%s reverse dns hostname=%s)."
-                + " This is common and usually repairs itself. Skipping",
-                node,
-                node.private_ip,
-                node.hostname,
-                addr_info_hostname,
-            )
+            if expect_multiple_entries:
+                logging.warning(
+                    "%s has a hostname that can not be queried via reverse"
+                    + " dns (private_ip=%s cyclecloud hostname=%s reverse dns hostname=%s)."
+                    + " This is common and usually repairs itself. Skipping",
+                    node,
+                    node.private_ip,
+                    node.hostname,
+                    addr_info_hostname,
+                )
+            else:
+                logging.error(
+                    "%s has a hostname that can not be queried via reverse"
+                    + " dns (private_ip=%s cyclecloud hostname=%s reverse dns hostname=%s)."
+                    + " If you have an entry for this address in your /etc/hosts file, please remove it.",
+                    node,
+                    node.private_ip,
+                    node.hostname,
+                    addr_info_hostname,
+                )
             return False
         return True
 

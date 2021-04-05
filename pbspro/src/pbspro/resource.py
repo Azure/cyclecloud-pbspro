@@ -32,15 +32,8 @@ ResourceFlag = typing_extensions.Literal[
     "nh",  # consumable host
     "q",   # consumable at queue or server
 ]
-# fmt: on
 
-if hasattr(ResourceFlag, "__args__"):
-    ResourceFlagNames = ResourceFlag.__args__  # type: ignore
-elif hasattr(ResourceFlag, "__values__"):
-    ResourceFlagNames = ResourceFlag.__values__  # type: ignore
-else:
-    ResourceFlagNames = ["", "fh", "h", "nh", "q"]
-
+ResourceFlagNames = ["", "fh", "h", "nh", "q"]
 ResourceTypeNames = typing_extensions.Literal["boolean", "duration"]
 
 

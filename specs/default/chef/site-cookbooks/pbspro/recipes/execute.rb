@@ -76,10 +76,12 @@ node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
 bash "add-node-to-scheduler" do
   code lazy {"/opt/pbs/bin/qmgr -c 'c n #{node[:hostname]}'"}
-  only_if do
-    cmd = Mixlib::ShellOut.new('/opt/pbs/bin/pbsnodes -a')
-    list_of_pbs_nodes = cmd.run_command.stdout.strip().split("\n")
-    !list_of_pbs_nodes.include?(node[:hostname])
+  only_if do 
+    lazy {
+      cmd = Mixlib::ShellOut.new('/opt/pbs/bin/pbsnodes -a')
+      list_of_pbs_nodes = cmd.run_command.stdout.strip().split("\n")
+      !list_of_pbs_nodes.include?(node[:hostname])
+    }
   end
   not_if {::File.exist?(node_created_guard)}
 end
