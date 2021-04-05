@@ -11,20 +11,16 @@ from pbspro.util import filter_non_host_resources
 StateCountType = typing_extensions.Literal[
     "Transit", "Queued", "Held", "Waiting", "Running", "Exiting", "Begun"
 ]
-if hasattr(StateCountType, "__args__"):
-    StateCounts = StateCountType.__args__  # type: ignore
-elif hasattr(StateCountType, "__values__"):
-    StateCounts = StateCountType.__values__  # type: ignore
-else:
-    StateCounts = [
-        "Transit",
-        "Queued",
-        "Held",
-        "Waiting",
-        "Running",
-        "Exiting",
-        "Begun",
-    ]
+
+StateCounts = [
+    "Transit",
+    "Queued",
+    "Held",
+    "Waiting",
+    "Running",
+    "Exiting",
+    "Begun",
+]
 
 
 class PBSProQueue:

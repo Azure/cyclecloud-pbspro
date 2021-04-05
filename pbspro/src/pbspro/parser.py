@@ -8,9 +8,9 @@ from hpc.autoscale.node import constraints as conslib
 from pbspro.util import filter_host_resources, filter_non_host_resources
 
 if typing.TYPE_CHECKING:
-    from pbspro.pbsqueue import StateCountType
+    from pbspro.pbsqueue import StateCountType  # noqa: F401
     from pbspro.pbsqueue import PBSProLimit
-    from pbspro.resource import (
+    from pbspro.resource import (  # noqa: F401
         PBSProResourceDefinition,
         ResourceState,
     )
