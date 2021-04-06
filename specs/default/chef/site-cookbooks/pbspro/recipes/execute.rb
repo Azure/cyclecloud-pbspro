@@ -74,8 +74,8 @@ end
 
 node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
-bash "add-node-to-scheduler" do
-  code lazy {"/opt/pbs/bin/qmgr -c 'c n #{node[:hostname]}'"}
+bash "await-joining-cluster" do
+  code lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]}"}
   only_if do 
     lazy {
       cmd = Mixlib::ShellOut.new('/opt/pbs/bin/pbsnodes -a')
@@ -87,11 +87,6 @@ bash "add-node-to-scheduler" do
 end
 
 defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do
-  
-  execute "set-node-offline" do
-    command lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]}"}
-    not_if {::File.exist?(node_created_guard)}
-  end
 
   execute "modify_limits" do
     command "/var/spool/pbs/modify_limits.sh && touch /etc/modify_limits.config"
