@@ -6,6 +6,7 @@ from subprocess import check_output
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from hpc.autoscale import clilib
+from hpc.autoscale.clilib import str_list
 from hpc.autoscale.job.demandcalculator import DemandCalculator
 from hpc.autoscale.job.driver import SchedulerDriver
 from hpc.autoscale.job.job import Job
@@ -49,7 +50,13 @@ class PBSCLI(clilib.CommonCLI):
         pass
 
     def _initconfig_parser(self, parser: ArgumentParser) -> None:
-        pass
+
+        parser.add_argument(
+            "--read-only-resources",
+            dest="pbspro__read_only_resources",
+            type=str_list,
+            default=["host", "vnode"],
+        )
 
     def _default_output_columns(
         self, config: Dict, cmd: Optional[str] = None
