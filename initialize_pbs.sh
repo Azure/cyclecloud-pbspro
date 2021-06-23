@@ -15,6 +15,7 @@ set -e
 /opt/pbs/bin/qmgr -c 'set server query_other_jobs = true'
 /opt/pbs/bin/qmgr -c 'set server scheduler_iteration = 15'
 /opt/pbs/bin/qmgr -c 'set server flatuid = true'
+/opt/pbs/bin/qmgr -c 'set server job_history_enable = true'
 
 /opt/pbs/bin/qmgr -c "set sched only_explicit_psets=True"
 /opt/pbs/bin/qmgr -c "set sched do_not_span_psets=True"
