@@ -20,12 +20,12 @@ in CycleCloud by specifying the PBSPro OSS version.
 
 Note: When using the cluster that is shipped with CycleCloud, the autoscaler and default queues are already installed.
 
-First, download the installer pkg from GitHub. For example, you can download the [2.0.2 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.2/cyclecloud-pbspro-pkg-2.0.2.tar.gz)
+First, download the installer pkg from GitHub. For example, you can download the [2.0.3 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.3/cyclecloud-pbspro-pkg-2.0.3.tar.gz)
 
 ```bash
 # Prerequisite: python3, 3.6 or newer, must be installed and in the PATH
-wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.2/cyclecloud-pbspro-pkg-2.0.2.tar.gz
-tar xzf cyclecloud-pbspro-pkg-2.0.2.tar.gz
+wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.3/cyclecloud-pbspro-pkg-2.0.3.tar.gz
+tar xzf cyclecloud-pbspro-pkg-2.0.3.tar.gz
 cd cyclecloud-pbspro
 # Optional, but recommended. Adds relevant resources and enables strict placement
 ./initialize_pbs.sh
