@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 #
 
+include_recipe 'pbspro::default'
+
 pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
