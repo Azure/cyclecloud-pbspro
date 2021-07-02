@@ -28,6 +28,7 @@ jobs:
         id: get-pbs-binaries
         run:
           mkdir rpms/;
+          curl -L -k -o rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm https://repo.almalinux.org/almalinux/8.3-beta/BaseOS/x86_64/os/Packages/hwloc-libs-1.11.9-3.el8.x86_64.rpm;
           curl -L -k -o rpms/openpbs-client-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-client-20.0.1-0.x86_64.rpm;
           curl -L -k -o rpms/openpbs-execution-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-execution-20.0.1-0.x86_64.rpm;
           curl -L -k -o rpms/openpbs-server-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-server-20.0.1-0.x86_64.rpm;
@@ -55,6 +56,17 @@ jobs:
           asset_path: dist/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_name: cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_content_type: application/gzip
+      
+      - name: Upload hwloc-libs-1.11.9-3.el8.x86_64.rpm;
+        id: upload-hwloc-libs
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm
+          asset_name: hwloc-libs-1.11.9-3.el8.x86_64.rpm;
+          asset_content_type: application/octet-stream
    
       - name: Upload openpbs-client-20.0.1-0.x86_64.rpm;
         id: upload-pbspro-binary-0
