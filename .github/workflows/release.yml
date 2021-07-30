@@ -28,7 +28,7 @@ jobs:
         id: get-pbs-binaries
         run:
           mkdir rpms/;
-          curl -L -k -o rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm https://repo.almalinux.org/almalinux/8.3-beta/BaseOS/x86_64/os/Packages/hwloc-libs-1.11.9-3.el8.x86_64.rpm;
+          curl -L -k -o rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.4/hwloc-libs-1.11.9-3.el8.x86_64.rpm;
           curl -L -k -o rpms/openpbs-client-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-client-20.0.1-0.x86_64.rpm;
           curl -L -k -o rpms/openpbs-execution-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-execution-20.0.1-0.x86_64.rpm;
           curl -L -k -o rpms/openpbs-server-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.0/openpbs-server-20.0.1-0.x86_64.rpm;
