@@ -43,6 +43,9 @@ echo INSTALL_PYTHON3=$INSTALL_PYTHON3
 echo INSTALL_VIRTUALENV=$INSTALL_VIRTUALENV
 echo VENV=$VENV
 
+# remove jetpack's python3 from the path
+export PATH=$(echo $PATH | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
+set +e
 which python3 > /dev/null;
 if [ $? != 0 ]; then
     if [ $INSTALL_PYTHON3 == 1 ]; then
@@ -52,19 +55,15 @@ if [ $? != 0 ]; then
         exit 1
     fi
 fi
-
-export PATH=$(python3 -c '
-import os
-paths = os.environ["PATH"].split(os.pathsep)
-cc_home = os.getenv("CYCLECLOUD_HOME", "/opt/cycle/jetpack")
-print(os.pathsep.join(
-    [p for p in paths if cc_home not in p]))')
+set -e
 
 if [ $INSTALL_VIRTUALENV == 1 ]; then
     python3 -m pip install virtualenv
 fi
 
+set +e
 python3 -m virtualenv --version 2>&1 > /dev/null
+
 if [ $? != 0 ]; then
     if [ $INSTALL_VIRTUALENV ]; then
         python3 -m pip install virtualenv || exit 1
@@ -73,7 +72,7 @@ if [ $? != 0 ]; then
         exit 1
     fi
 fi
-
+set -e
 
 python3 -m virtualenv $VENV
 source $VENV/bin/activate
