@@ -20,6 +20,7 @@ from pbscc import InvalidSizeExpressionError
 import pbscc
 from copy import deepcopy
 import numbers
+import inspect
 
 
 class PBSAutostart:
@@ -281,6 +282,19 @@ class PBSAutostart:
                 filtered_nodearray_definitions.add_machinetype(machinetype)
             else:
                 machinetype["ungrouped"] = "false"
+
+                # Work around for bug in jetpack installed version of the now defunct autoscsaler lib 
+                # which can temporarily double count allocations, causing slow startup times.
+                # This simply rejects that double-deduction
+                class PatchedMachineType(Record):
+                    def __setitem__(self, key, value):
+                        if key == "availableCount":
+                            stck = inspect.stack()
+                            if len(stck) >= 2:
+                                if stck[1][3] == "_commit":
+                                    return
+                        return Record.__setitem__(self, key, value)
+                machinetype = PatchedMachineType(machinetype)
                 filtered_nodearray_definitions.add_machinetype_with_placement_group(machinetype.get("group_id"), machinetype)
             
         return filtered_nodearray_definitions
