@@ -212,7 +212,7 @@ class PBSProDriver(SchedulerDriver):
             try:
                 try:
                     ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
-                    if ndicts and ndicts[0].get("ccnodeid"):
+                    if ndicts and ndicts[0].get("resources_available.ccnodeid"):
                         logging.info(
                             "ccnodeid is already defined on %s. Skipping", node
                         )
