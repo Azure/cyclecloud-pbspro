@@ -14,7 +14,7 @@ rpmdev-setuptree
 #yum install -y gcc autoconf automake hwloc-devel libX11-devel libXt-devel libedit-devel libical-devel ncurses-devel perl postgresql-devel python-devel==2.7.5-77.el7_6 tcl-devel tk-devel swig expat-devel openssl-devel 
 yum install -y gcc make rpm-build libtool hwloc-devel libX11-devel libXt-devel libedit-devel libical-devel ncurses-devel perl postgresql-devel python-devel tcl-devel  tk-devel swig expat-devel openssl-devel libXext libXft
 yum install -y expat libedit postgresql-server python sendmail sudo tcl tk libical
-yum install -y python-pip which net-tools
+yum install -y python-pip which net-tools wget
 wget "${DOWNLOAD_URL}/${OPENPBS_PKG}"
 tar xzf ${OPENPBS_PKG}
 
@@ -22,9 +22,9 @@ cd $OPENPBS_FOLDER
 ./autogen.sh
 ./configure
 make dist
-mv $OPENPBS_DIST ../rpmbuild/SOURCES
-cp -f openpbs.spec ../rpmbuild/SPECS
-cd ~/rpmbuild/SPECS
-rpmbuild -ba openpbs.spec 
+mv $OPENPBS_DIST /root/rpmbuild/SOURCES
+cp -f pbspro.spec /root/rpmbuild/SPECS
+cd /root/rpmbuild/SPECS
+rpmbuild -ba pbspro.spec 
 
 
