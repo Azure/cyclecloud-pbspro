@@ -170,6 +170,7 @@ class PBSProDriver(SchedulerDriver):
         for node in nodes:
             if not node.hostname:
                 continue
+            hostname_reported = node.metadata["hostname_reported"]
 
             if not node.private_ip:
                 continue
@@ -210,8 +211,9 @@ class PBSProDriver(SchedulerDriver):
                 )
                 continue
             try:
+                
                 try:
-                    ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
+                    ndicts = self.pbscmd.qmgr_parsed("list", "node", hostname_reported)
                     if ndicts and ndicts[0].get("resources_available.ccnodeid"):
                         logging.info(
                             "ccnodeid is already defined on %s. Skipping", node
@@ -225,7 +227,7 @@ class PBSProDriver(SchedulerDriver):
                     logging.info(
                         "%s does not exist in this cluster yet. Creating.", node
                     )
-                    self.pbscmd.qmgr("create", "node", node.hostname)
+                    self.pbscmd.qmgr("create", "node", hostname_reported)
 
                 for res_name, res_value in node.resources.items():
                     # we set ccnodeid last, so that we can see that we have completely joined a node
@@ -268,19 +270,19 @@ class PBSProDriver(SchedulerDriver):
                     self.pbscmd.qmgr(
                         "set",
                         "node",
-                        node.hostname,
+                        hostname_reported,
                         "resources_available.{}={}".format(res_name, res_value_str),
                     )
 
                 self.pbscmd.qmgr(
                     "set",
                     "node",
-                    node.hostname,
+                    hostname_reported,
                     "resources_available.{}={}".format(
                         "ccnodeid", node.resources["ccnodeid"]
                     ),
                 )
-                self.pbscmd.pbsnodes("-r", node.hostname)
+                self.pbscmd.pbsnodes("-r", hostname_reported)
                 ret.append(node)
             except SubprocessError as e:
                 logging.error(
@@ -350,19 +352,21 @@ class PBSProDriver(SchedulerDriver):
         for node in nodes:
             if not node.hostname:
                 continue
+            hostname_reported = node.metadata["hostname_reported"]
             try:
-                self.pbscmd.qmgr("list", "node", node.hostname)
+                self.pbscmd.qmgr("list", "node", hostname_reported)
             except CalledProcessError as e:
                 if "Server has no node list" in str(e):
                     ret.append(node)
                     continue
                 logging.error(
-                    "Could not list node with hostname %s - %s", node.hostname, e
+                    "Could not list node with hostname %s - %s", hostname_reported, e
                 )
                 continue
 
             try:
-                self.pbscmd.qmgr("delete", "node", node.hostname)
+                
+                self.pbscmd.qmgr("delete", "node", hostname_reported)
                 node.metadata["pbs_state"] = "deleted"
                 ret.append(node)
             except CalledProcessError as e:
