@@ -235,11 +235,13 @@ class PBSProResourceDefinition:
         self.name = name
         self.type = resource_type
         self.flag = "".join(sorted(flag))
+        # remove irrelevant m flag
+        self.__flag_simplified = self.flag.replace("m", "")
         self.read_only = False
 
     @property
     def is_consumable(self) -> bool:
-        return self.flag in ["fh", "hn", "q", "hmnq"]
+        return self.__flag_simplified in ["fh", "hn", "q", "hnq"]
 
     @property
     def is_host(self) -> bool:
