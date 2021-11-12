@@ -38,7 +38,6 @@ def test_parse_scheduler_node() -> None:
             "resources_assigned.infiniband": True,
         },
         get_pbspro_parser().resource_definitions,
-        True,
     )
 
     expected = SchedulerNode("tux", {"ncpus": 4, "group_id": "pg0", "infiniband": True})
@@ -50,13 +49,12 @@ def test_parse_scheduler_node() -> None:
     # True: down for longer than 5 minutes
     actual = parse_scheduler_node(
         {
-            "name": "TUX",
+            "name": "tux",
             "resources_available.ncpus": 4,
             "state": "down",
             "last_state_change_time": "'Mon Jan 1 12:34:56 2001'",
         },
         get_pbspro_parser().resource_definitions,
-        True,
     )
 
     assert actual.marked_for_deletion
@@ -70,7 +68,6 @@ def test_parse_scheduler_node() -> None:
             "last_state_change_time": "'Mon Jan 1 12:34:56 2001'",
         },
         get_pbspro_parser().resource_definitions,
-        True,
     )
 
     assert actual.marked_for_deletion
@@ -78,15 +75,14 @@ def test_parse_scheduler_node() -> None:
     # True: down and offline for less than 5 minutes
     actual = parse_scheduler_node(
         {
-            "name": "Tux",
+            "name": "tux",
             "resources_available.ncpus": 4,
             "state": "down,offline",
             "last_state_change_time": time.ctime(),
         },
         get_pbspro_parser().resource_definitions,
-        False,
     )
-    assert actual.hostname == "Tux"
+
     assert actual.marked_for_deletion
 
     # True: down for less than 5 minutes
@@ -98,7 +94,6 @@ def test_parse_scheduler_node() -> None:
             "last_state_change_time": time.ctime(),
         },
         get_pbspro_parser().resource_definitions,
-        True,
     )
 
     assert actual.marked_for_deletion
@@ -109,7 +104,7 @@ def test_down_long_enough() -> None:
     now = datetime.datetime.now()
 
     # False: missing last_state_change_time
-    driver = PBSProDriver({}, down_timeout=300)
+    driver = PBSProDriver(down_timeout=300)
     assert not driver._down_long_enough(now, node)
 
     # False: last_state_change_time < 300 seconds ago
