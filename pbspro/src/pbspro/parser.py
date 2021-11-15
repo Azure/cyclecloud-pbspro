@@ -146,7 +146,10 @@ class PBSProParser:
         # from a job pov - it only exists in one queue, so it does not
         # care if the shared constraints are from the queue or are global
         for res_name, shared_res in parent_shared_resources.items():
-            shared_resources[res_name] = [shared_res]
+            if not isinstance(shared_res, list):
+                shared_resources[res_name] = [shared_res]
+            else:
+                shared_resources[res_name] = shared_res + []
 
         for res_name, initial_value in res_avail.items():
             if res_name not in non_host_resources:
