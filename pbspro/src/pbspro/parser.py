@@ -155,9 +155,9 @@ class PBSProParser:
             if res_name not in non_host_resources:
                 continue
 
-            current_value = res_assigned.get(res_name)
-            if current_value is None:
-                current_value = initial_value
+            assigned_value = res_assigned.get(res_name) or 0
+
+            current_value = initial_value  - assigned_value
 
             resource = non_host_resources[res_name]
 
