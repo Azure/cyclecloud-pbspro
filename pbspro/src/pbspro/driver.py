@@ -396,7 +396,7 @@ class PBSProDriver(SchedulerDriver):
         if self.__queues is None:
             self.__shared_resources = shared_resources
             self.__queues = read_queues(
-                self.pbscmd, self.resource_definitions, shared_resources
+                self.config, self.pbscmd, self.resource_definitions, shared_resources
             )
         assert shared_resources == self.__shared_resources
         return self.__queues
@@ -427,10 +427,7 @@ class PBSProDriver(SchedulerDriver):
         jobs = self.parse_jobs(queues, scheduler.resources_for_scheduling)
         return jobs, nodes
 
-    def parse_scheduler_nodes(
-        self,
-        force: bool = False,
-    ) -> List[Node]:
+    def parse_scheduler_nodes(self, force: bool = False,) -> List[Node]:
         if force or self.__scheduler_nodes_cache is None:
             self.__scheduler_nodes_cache = parse_scheduler_nodes(
                 self.pbscmd, self.resource_definitions

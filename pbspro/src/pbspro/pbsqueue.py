@@ -160,6 +160,7 @@ def list_queue_names(pbscmd: PBSCMD) -> List[str]:
 
 
 def read_queues(
+    config: Dict,
     pbscmd: PBSCMD,
     resource_definitions: Dict[str, PBSProResourceDefinition],
     scheduler_shared_resources: Dict[str, conslib.SharedResource],
@@ -172,12 +173,13 @@ def read_queues(
 
     # queue resources will include things like ncpus - i.e. the total amount of ncpus etc
     # They are meaningless as a shared constraint, they are only there for info purposes
+    ignore_queues = config.get("pbspro", {}).get("ignore_queues", [])
 
     for qdict in queue_dicts:
         state_count = parser.parse_state_counts(qdict["state_count"])
 
         resource_state = parser.parse_resource_state(qdict, scheduler_shared_resources)
-
+        
         queue = PBSProQueue(
             name=qdict["name"],
             queue_type=qdict["queue_type"],
@@ -189,7 +191,7 @@ def read_queues(
             resources_default=parser.parse_resources_default(qdict),
             default_chunk=parser.parse_default_chunk(qdict),
             resource_definitions=resource_definitions,
-            enabled=qdict["enabled"].lower() == "true",
+            enabled=qdict["enabled"].lower() == "true" and qdict["name"] not in ignore_queues,
             started=qdict["started"].lower() == "true",
         )
         ret[queue.name] = queue
