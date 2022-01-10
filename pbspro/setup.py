@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 from setuptools.command.test import Command
 from setuptools.command.test import test as TestCommand  # noqa: N812
 
-__version__ = "2.0.9"
+__version__ = "2.0.10"
 CWD = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -127,7 +127,7 @@ setup(
             "../notices",
         ]
     },
-    install_requires=["typing_extensions", "certifi==2020.12.5"],
+    install_requires=["typing_extensions", "certifi==2020.12.5", "zipp==3.6"],
     tests_require=["pytest==3.2.3"],
     cmdclass={"test": PyTest, "format": Formatter, "types": TypeChecking},
     url="http://www.cyclecomputing.com",
