@@ -53,8 +53,8 @@ cd cyclecloud-pbspro
 # For example, you typically have to add the ungrouped and group_id resources
 # to the /var/spool/pbs/sched_priv/sched_priv file and restart.
 ## [root@scheduler cyclecloud-pbspro]# azpbs validate
-## ungrouped is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_priv. Please add this and restart PBS
-## group_id is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_priv. Please add this and restart PBS
+## ungrouped is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_config. Please add this and restart PBS
+## group_id is not defined for line 'resources:' in /var/spool/pbs/sched_priv/sched_config. Please add this and restart PBS
 azpbs validate
 ```
 
