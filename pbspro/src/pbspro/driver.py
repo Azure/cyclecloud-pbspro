@@ -1,4 +1,5 @@
 import datetime
+import re
 import socket
 from functools import lru_cache
 from subprocess import CalledProcessError, SubprocessError
@@ -430,7 +431,7 @@ class PBSProDriver(SchedulerDriver):
     def parse_scheduler_nodes(self, force: bool = False,) -> List[Node]:
         if force or self.__scheduler_nodes_cache is None:
             self.__scheduler_nodes_cache = parse_scheduler_nodes(
-                self.pbscmd, self.resource_definitions
+                self.config, self.pbscmd, self.resource_definitions
             )
         return self.__scheduler_nodes_cache
 
@@ -698,14 +699,34 @@ def parse_jobs(
 
 
 def parse_scheduler_nodes(
-    pbscmd: PBSCMD, resource_definitions: Dict[str, PBSProResourceDefinition]
+    config: Dict,
+    pbscmd: PBSCMD,
+    resource_definitions: Dict[str, PBSProResourceDefinition],
 ) -> List[Node]:
     """
     Gets the current state of the nodes as the scheduler sees them, including resources,
     assigned resources, jobs currently running etc.
     """
     ret: List[Node] = []
+    ignore_onprem = config.get("pbspro", {}).get("ignore_onprem", False)
+    ignore_hostnames_re_expr = config.get("pbspro", {}).get("ignore_hostnames_re")
+    ignore_hostnames_re = None
+    if ignore_hostnames_re_expr:
+        try:
+            ignore_hostnames_re = re.compile(ignore_hostnames_re_expr)
+        except:
+            logging.exception(f"Could not parse {ignore_hostnames_re_expr} as a regular expression")
+    ignored_hostnames = []
+
     for ndict in pbscmd.pbsnodes_parsed("-a"):
+        if ignore_hostnames_re and ignore_hostnames_re.match(ndict["name"]):
+            ignored_hostnames.append(ndict["name"])
+            continue
+
+        if ignore_onprem and ndict.get("resources_available.ccnodeid"):
+            ignored_hostnames.append(ndict["name"])
+            continue
+
         node = parse_scheduler_node(ndict, resource_definitions)
 
         if not node.available.get("ccnodeid"):
@@ -716,6 +737,12 @@ def parse_scheduler_nodes(
                 node,
             )
         ret.append(node)
+    
+    if ignored_hostnames:
+        if len(ignored_hostnames) < 5:
+            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames)}")
+        else:
+            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames[:5])}...")
     return ret
 
 
