@@ -39,6 +39,9 @@ class PBSProParser:
         if "select" in raw_dict:
             ret["select"] = self.parse_select(str(raw_dict["select"]))
 
+        if "schedselect" in raw_dict:
+            ret["schedselect"] = self.parse_select(str(raw_dict["schedselect"]))
+
         if "place" in raw_dict:
             ret["place"] = self.parse_place(raw_dict["place"])
 
@@ -86,6 +89,7 @@ class PBSProParser:
             # i.e. -l select=1:mem=16gb == -l select=mem=16gb
             # if they picked a number it will be overridden below
             chunk["select"] = "1"
+            chunk["schedselect"] = "1"
             for expr in chunk_expr.split(":"):
                 value: Any
 

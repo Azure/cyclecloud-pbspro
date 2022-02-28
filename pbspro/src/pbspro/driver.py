@@ -566,6 +566,7 @@ def parse_jobs(
             remaining = 1
 
         res_list = jdict["Resource_List"]
+        res_list["schedselect"] = jdict["schedselect"]
         rdict = parser.convert_resource_list(res_list)
 
         pack = (
@@ -604,7 +605,7 @@ def parse_jobs(
 
         sharing = rdict["place"].get("sharing")
 
-        for n, chunk_base in enumerate(rdict["select"]):
+        for n, chunk_base in enumerate(rdict["schedselect"]):
 
             chunk: Dict[str, Any] = {}
 
@@ -633,7 +634,7 @@ def parse_jobs(
                 working_constraint["in-a-placement-group"] = True
 
             my_job_id = job_id
-            if len(rdict["select"]) > 1:
+            if len(rdict["schedselect"]) > 1:
                 if "." in job_id:
                     job_index, host = job_id.split(".", 1)
                     my_job_id = "{}+{}.{}".format(job_index, n, host)
@@ -648,7 +649,7 @@ def parse_jobs(
             job_resources = {}
 
             for rname, rvalue in chunk.items():
-                if rname in ["select", "place", "nodect"]:
+                if rname in ["select", "schedselect", "place", "nodect"]:
                     continue
 
                 if rname not in resources_for_scheduling:
