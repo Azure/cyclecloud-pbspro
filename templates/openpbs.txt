@@ -315,14 +315,14 @@ Order = 20
         Label = Scheduler OS
         ParameterType = Cloud.Image
         Config.OS = linux
-        DefaultValue = cycle.image.centos8
+        DefaultValue = almalinux:almalinux-hpc:8_5-hpc:latest
         Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8"}
 
         [[[parameter ImageName]]]
         Label = Compute OS
         ParameterType = Cloud.Image
         Config.OS = linux
-        DefaultValue = cycle.image.centos8
+        DefaultValue = almalinux:almalinux-hpc:8_5-hpc:latest
         Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8"}
 
         [[[parameter PBSVersion]]]
