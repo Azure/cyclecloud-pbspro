@@ -122,7 +122,13 @@ class PBSProDriver(SchedulerDriver):
 
             job_state = node.metadata.get("pbs_state", "")
             if "down" in job_state:
+
                 node.closed = True
+                if "state-unknown" in job_state:
+                    logging.warning(
+                        "Node is in state-unknown - skipping scale down - %s", node
+                    )
+                    continue
                 # no private_ip == no dns entry, so we can safely remove it
                 if "offline" in job_state or not node.private_ip:
                     to_delete.append(node)
@@ -135,7 +141,7 @@ class PBSProDriver(SchedulerDriver):
             self.handle_draining(to_drain)
 
         if to_delete:
-            logging.info("Deleting down,offline nodes: %s", to_drain)
+            logging.info("Deleting down,offline nodes: %s", to_delete)
             return self.handle_post_delete(to_delete)
         return []
 
@@ -214,9 +220,21 @@ class PBSProDriver(SchedulerDriver):
                 try:
                     ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
                     if ndicts and ndicts[0].get("resources_available.ccnodeid"):
-                        logging.info(
-                            "ccnodeid is already defined on %s. Skipping", node
-                        )
+                        comment = ndicts[0].get("comment", "")
+                        if "offline" in ndicts[0].get("state", "") and (
+                            comment.startswith("cyclecloud offline")
+                            or comment.startswith("cyclecloud joined")
+                        ):
+                            logging.info(
+                                "%s is offline. Setting it back to online", node
+                            )
+                            self.pbscmd.pbsnodes(
+                                "-r", node.hostname, "-C", "cyclecloud restored"
+                            )
+                        else:
+                            logging.info(
+                                "ccnodeid is already defined on %s. Skipping", node
+                            )
                         continue
                     # TODO RDH should we just delete it instead?
                     logging.info(
@@ -281,7 +299,7 @@ class PBSProDriver(SchedulerDriver):
                         "ccnodeid", node.resources["ccnodeid"]
                     ),
                 )
-                self.pbscmd.pbsnodes("-r", node.hostname)
+                self.pbscmd.pbsnodes("-r", node.hostname, "-C", "cyclecloud joined")
                 ret.append(node)
             except SubprocessError as e:
                 logging.error(
@@ -327,7 +345,9 @@ class PBSProDriver(SchedulerDriver):
                     ret.append(node)
             else:
                 try:
-                    self.pbscmd.pbsnodes("-o", node.hostname)
+                    self.pbscmd.pbsnodes(
+                        "-o", node.hostname, "-C", "cyclecloud offline"
+                    )
 
                     # # Due to a delay in when pbsnodes -o exits to when pbsnodes -a
                     # # actually reports an offline state, w ewill just optimistically set it to offline
@@ -812,5 +832,7 @@ def parse_scheduler_node(
 
     if "exclusive" in node.metadata["pbs_state"]:
         node.closed = True
+
+    node.metadata["comment"] = ndict.get("comment", "")
 
     return node
