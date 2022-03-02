@@ -397,6 +397,10 @@ class PBSAutostart:
                         else:
                             pbscc.error("WARNING: Falsely determined that %s is idle!" % m.hostname)
                         continue
+
+                    if set(pbsnode["state"].split(",")) - set(["free", "down"):
+                        pbscc.warn("WARNING: %s is not in a valid state for termination - %s", m.hostname, pbsnode["state"])
+                        continue
                     
                     last_state_change_time = pbsnode["last_state_change_time"]
                     last_used_time = pbsnode.get("last_used_time")
