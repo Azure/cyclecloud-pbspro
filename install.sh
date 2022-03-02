@@ -11,6 +11,10 @@ SCHEDULER=pbspro
 INSTALL_PYTHON3=0
 INSTALL_VIRTUALENV=0
 VENV=/opt/cycle/${SCHEDULER}/venv
+mkdir -p /opt/cycle/${SCHEDULER}/server_dyn_res
+cp server_dyn_res_wrapper.sh /opt/cycle/${SCHEDULER}/
+chmod +x /opt/cycle/${SCHEDULER}/server_dyn_res_wrapper.sh
+
 export PATH=$PATH:/root/bin
 
 while (( "$#" )); do

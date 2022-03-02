@@ -1,4 +1,5 @@
 import io
+import os
 import typing
 from typing import Any, Dict, List, Optional, Set
 
@@ -163,7 +164,12 @@ class PBSProParser:
 
             if resource.is_consumable:
                 assigned_value = res_assigned.get(res_name) or 0
-                
+                res_def = self.resource_definitions.get(res_name)
+                if not res_def:
+                    logging.error(f"Unknown resource {res_name}. Will not be used for autoscale")
+                    continue
+                initial_value = res_def.type.parse(initial_value)
+                assigned_value = res_def.type.parse(assigned_value)
                 current_value = initial_value  - assigned_value
 
                 if res_name not in shared_resources:
@@ -235,9 +241,17 @@ class PBSProParser:
     def parse_resources_available(
         self, nconfig: Dict[str, Any], filter_is_host: Optional[bool] = None
     ) -> Dict[str, str]:
-        return self.parse_prefix_from_dict(
+        ret = self.parse_prefix_from_dict(
             "resources_available", nconfig, filter_is_host
         )
+        if not os.path.exists("/opt/cycle/pbspro/server_dyn_res/"):
+            return ret
+        for fil_name in os.listdir("/opt/cycle/pbspro/server_dyn_res/"):
+            res_name = fil_name
+            path = os.path.join("/opt/cycle/pbspro/server_dyn_res", fil_name)
+            with open(path) as fr:
+                ret[res_name] = fr.read().strip()
+        return ret
 
     def parse_resources_assigned(
         self, nconfig: Dict[str, Any], filter_is_host: Optional[bool] = None

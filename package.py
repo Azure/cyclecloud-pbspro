@@ -150,6 +150,7 @@ def execute() -> None:
     _add("initialize_pbs.sh", mode=os.stat("initialize_pbs.sh")[0])
     _add("initialize_default_queues.sh", mode=os.stat("initialize_default_queues.sh")[0])
     _add("generate_autoscale_json.sh", mode=os.stat("generate_autoscale_json.sh")[0])
+    _add("server_dyn_res_wrapper.sh", mode=os.stat("server_dyn_res_wrapper.sh")[0])
     _add("autoscale_hook.py", "pbspro/conf/autoscale_hook.py")
     _add("logging.conf", "pbspro/conf/logging.conf")
 

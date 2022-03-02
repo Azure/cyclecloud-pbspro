@@ -110,6 +110,9 @@ class PBSProQueue:
 
             if resource.is_host:
                 continue
+            
+            if rname not in self.resource_state.shared_resources:
+                raise RuntimeError(f"Undefined resource {rname}. Is this a misconfigured server_dyn_res?")
 
             shared_resource_list: List[
                 conslib.SharedResource
