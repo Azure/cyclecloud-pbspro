@@ -121,7 +121,11 @@ class PBSProDriver(SchedulerDriver):
 
             job_state = node.metadata.get("pbs_state", "")
             if "down" in job_state:
+                
                 node.closed = True
+                if "state-unknown" in job_state:
+                    logging.warning("Node is in state-unknown - skipping scale down - %s", node)
+                    continue
                 # no private_ip == no dns entry, so we can safely remove it
                 if "offline" in job_state or not node.private_ip:
                     to_delete.append(node)
