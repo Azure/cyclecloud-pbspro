@@ -6,7 +6,7 @@ maintainer       "Microsoft Corporation"
 license          "MIT"
 description      "Installs/Configures Open PBS Pro"
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
-version          "2.0.12"
+version          "2.0.13"
 depends          "tandem"
 %w{ cganglia cshared cuser cyclecloud }.each {|c| depends c}
 
