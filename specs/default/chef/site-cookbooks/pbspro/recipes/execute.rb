@@ -8,11 +8,14 @@ pbsprover = node[:pbspro][:version]
 
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
+package_name = node[:pbspro][:package]
 
-if pbsprover.to_i < 20 
-  package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
-else
-  package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+if package_name == nil
+  if pbsprover.to_i < 20 
+    package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
+  else
+    package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+  end
 end
 
 jetpack_download package_name do
