@@ -314,6 +314,14 @@ class PBSProDriver(SchedulerDriver):
         return nodes
 
     def handle_boot_timeout(self, nodes: List[Node]) -> List[Node]:
+        for node in nodes:
+            if node.hostname:
+                try:
+                    self.pbscmd.pbsnodes(
+                        "-o", node.hostname, "-C", "cyclecloud offline"
+                    )
+                except CalledProcessError:
+                    continue
         return nodes
 
     def handle_draining(self, nodes: List[Node]) -> List[Node]:
