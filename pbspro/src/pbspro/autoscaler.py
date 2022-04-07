@@ -107,7 +107,11 @@ def autoscale_pbspro(
         timed_out_to_deleted = pbs_driver.handle_boot_timeout(timed_out_booting) or []
 
     if unmatched_for_5_mins:
-        logging.info("unmatched_for_5_mins %s", unmatched_for_5_mins)
+        logging.info(
+            "The following nodes have reached the idle_timeout (%s): %s",
+            idle_timeout,
+            unmatched_for_5_mins,
+        )
         unmatched_nodes_to_delete = (
             pbs_driver.handle_draining(unmatched_for_5_mins) or []
         )
@@ -246,10 +250,7 @@ def print_demand(
     output_format = output_format or "table"
 
     demandprinter.print_demand(
-        output_columns,
-        demand_result,
-        output_format=output_format,
-        log=log,
+        output_columns, demand_result, output_format=output_format, log=log,
     )
     return demand_result
 
