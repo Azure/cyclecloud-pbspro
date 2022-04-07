@@ -105,6 +105,8 @@ def autoscale_pbspro(
             "The following nodes have timed out while booting: %s", timed_out_booting
         )
         timed_out_to_deleted = pbs_driver.handle_boot_timeout(timed_out_booting) or []
+        for node in timed_out_booting:
+            node.closed = True
 
     if unmatched_for_5_mins:
         logging.info(

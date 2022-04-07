@@ -81,7 +81,7 @@ end
 node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
 bash "await-joining-cluster" do
-  code lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]}"}
+  code lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]} -C 'cyclecloud offline'"}
   only_if do 
     lazy {
       cmd = Mixlib::ShellOut.new('/opt/pbs/bin/pbsnodes -a')

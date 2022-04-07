@@ -273,7 +273,15 @@ execute Standard_F2s_v2 50
 execute Standard_D2_v4 50
 execute Standard_E2s_v4 50
 ```
-
+## Timeouts
+By default we set idle and boot timeouts across all nodes.
+```"idle_timeout": 300,
+   "boot_timeout": 3600
+```
+You can also set these per nodearray.
+```"idle_timeout": {"default": 300, "nodearray1": 600, "nodearray2": 900},
+   "boot_timeout": {"default": 3600, "nodearray1": 7200, "nodearray2": 900},
+```
 ## Logging
 By default, `azpbs` will use `/opt/cycle/pbspro/logging.conf`, as defined in `/opt/cycle/pbsspro/autoscale.json`. This will create the following logs.
 

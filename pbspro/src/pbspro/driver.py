@@ -224,6 +224,7 @@ class PBSProDriver(SchedulerDriver):
                         if "offline" in ndicts[0].get("state", "") and (
                             comment.startswith("cyclecloud offline")
                             or comment.startswith("cyclecloud joined")
+                            or comment.startswith("cyclecloud restored")
                         ):
                             logging.info(
                                 "%s is offline. Setting it back to online", node
@@ -232,7 +233,7 @@ class PBSProDriver(SchedulerDriver):
                                 "-r", node.hostname, "-C", "cyclecloud restored"
                             )
                         else:
-                            logging.info(
+                            logging.fine(
                                 "ccnodeid is already defined on %s. Skipping", node
                             )
                         continue
@@ -314,44 +315,53 @@ class PBSProDriver(SchedulerDriver):
         return nodes
 
     def handle_boot_timeout(self, nodes: List[Node]) -> List[Node]:
-        for node in nodes:
-            if node.hostname:
-                try:
-                    self.pbscmd.pbsnodes(
-                        "-o", node.hostname, "-C", "cyclecloud offline"
-                    )
-                except CalledProcessError:
-                    continue
-        return nodes
+        return self._handle_draining(nodes, ignore_assignments=True)
 
     def handle_draining(self, nodes: List[Node]) -> List[Node]:
+        return self._handle_draining(nodes, ignore_assignments=False)
+
+    def _handle_draining(
+        self, nodes: List[Node], ignore_assignments: bool = False
+    ) -> List[Node]:
+        """
+        ignore_assignments - whether we should ignore assigned jobs by the autoscaler - note
+                             we do not ignore actual running jobs, only presumed to run jobs.
+        """
         # TODO batch these up, but keep it underneath the
         # max arg limit
         ret = []
         for node in nodes:
             if not node.hostname:
-                logging.info("Node %s has no hostname.", node)
+                logging.info("Node %s has no hostname. It is safe to delete.", node)
+                ret.append(node)
                 continue
-
-            # TODO implement after we have resources added back in
-            # what about deleting partially initialized nodes? I think we
-            # just need to skip non-managed nodes
-            # if not node.resources.get("ccnodeid"):
-            #     continue
 
             if not node.managed and not node.resources.get("ccnodeid"):
                 logging.debug("Ignoring attempt to drain unmanaged %s", node)
                 continue
 
             if "offline" in node.metadata.get("pbs_state", ""):
-                if node.assignments:
+                if node.assignments and not ignore_assignments:
                     logging.info("Node %s has jobs still running on it.", node)
                     # node is already 'offline' i.e. draining, but a job is still running
                     continue
                 else:
-                    # ok - it is offline _and_ no jobs are running on it.
-                    ret.append(node)
+                    if node.metadata.get("_running_job_"):
+                        logging.error(
+                            "Attempt to shutdown and remove %s while running job(s) %s",
+                            node,
+                            node.assignments,
+                        )
+                    else:
+                        # ok - it is offline _and_ no jobs are running on it.
+                        ret.append(node)
             else:
+                try:
+                    self.pbscmd.pbsnodes(node.hostname)
+                except CalledProcessError as e:
+                    if "Error: Unknown node" in str(e):
+                        ret.append(node)
+                        continue
                 try:
                     self.pbscmd.pbsnodes(
                         "-o", node.hostname, "-C", "cyclecloud offline"
@@ -744,7 +754,9 @@ def parse_scheduler_nodes(
         try:
             ignore_hostnames_re = re.compile(ignore_hostnames_re_expr)
         except:
-            logging.exception(f"Could not parse {ignore_hostnames_re_expr} as a regular expression")
+            logging.exception(
+                f"Could not parse {ignore_hostnames_re_expr} as a regular expression"
+            )
     ignored_hostnames = []
 
     for ndict in pbscmd.pbsnodes_parsed("-a"):
@@ -766,12 +778,16 @@ def parse_scheduler_nodes(
                 node,
             )
         ret.append(node)
-    
+
     if ignored_hostnames:
         if len(ignored_hostnames) < 5:
-            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames)}")
+            logging.info(
+                f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames)}"
+            )
         else:
-            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames[:5])}...")
+            logging.info(
+                f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames[:5])}..."
+            )
     return ret
 
 
@@ -814,6 +830,7 @@ def parse_scheduler_node(
             job_id = job_id_full
 
         node.assign(job_id)
+        node.metadata["_running_job_"] = True
 
         if "job_ids_long" not in node.metadata:
             node.metadata["job_ids_long"] = [job_id_full]
