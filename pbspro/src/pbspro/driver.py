@@ -109,6 +109,9 @@ class PBSProDriver(SchedulerDriver):
 
         for node in nodes:
 
+            if node.keep_alive:
+                continue
+
             if node.state == "Failed":
                 node.closed = True
                 to_delete.append(node)
@@ -812,9 +815,9 @@ def parse_scheduler_node(
         state = "partially-free"
 
     node.metadata["pbs_state"] = state
-
-    if "down" in state:
-        node.marked_for_deletion = True
+    # This ends up ignoring KeepAlive, so just let downstream handling of down/offline nodes.
+    # if "down" in state:
+    #     node.marked_for_deletion = True
 
     node.metadata["last_state_change_time"] = ndict.get("last_state_change_time", "")
 
