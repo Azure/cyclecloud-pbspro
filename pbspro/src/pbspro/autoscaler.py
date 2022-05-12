@@ -10,7 +10,7 @@ from hpc.autoscale.job import demandprinter
 from hpc.autoscale.job.demand import DemandResult
 from hpc.autoscale.job.demandcalculator import DemandCalculator
 from hpc.autoscale.node.nodehistory import NodeHistory
-from hpc.autoscale.node.nodemanager import new_node_manager
+from hpc.autoscale.node.nodemanager import NodeManager, new_node_manager
 from hpc.autoscale.results import DefaultContextHandler, register_result_handler
 from hpc.autoscale.util import SingletonLock, json_load
 
@@ -152,6 +152,7 @@ def new_demand_calculator(
     ctx_handler: Optional[DefaultContextHandler] = None,
     node_history: Optional[NodeHistory] = None,
     singleton_lock: Optional[SingletonLock] = None,
+    node_mgr: Optional[NodeManager] = None,
 ) -> DemandCalculator:
     if pbs_driver is None:
         pbs_driver = PBSProDriver(config)
@@ -163,7 +164,9 @@ def new_demand_calculator(
         node_history = pbs_driver.new_node_history(config)
 
     # keep it as a config
-    node_mgr = new_node_manager(config, existing_nodes=pbs_env.scheduler_nodes)
+    node_mgr = node_mgr or new_node_manager(
+        config, existing_nodes=pbs_env.scheduler_nodes
+    )
     pbs_driver.preprocess_node_mgr(config, node_mgr)
     singleton_lock = singleton_lock or pbs_driver.new_singleton_lock(config)
     assert singleton_lock

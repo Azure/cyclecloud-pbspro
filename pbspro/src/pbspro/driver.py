@@ -13,9 +13,16 @@ from hpc.autoscale.job.nodequeue import NodeQueue
 from hpc.autoscale.job.schedulernode import SchedulerNode
 from hpc.autoscale.node.constraints import SharedResource
 from hpc.autoscale.node.node import Node
+from hpc.autoscale.node.nodehistory import NodeHistory
 from hpc.autoscale.node.nodemanager import NodeManager
 from hpc.autoscale.results import EarlyBailoutResult
-from hpc.autoscale.util import is_valid_hostname, partition
+from hpc.autoscale.util import (
+    is_valid_hostname,
+    parse_boot_timeout,
+    parse_idle_timeout,
+    partition,
+    partition_single,
+)
 
 from pbspro.constants import PBSProJobStates
 from pbspro.parser import get_pbspro_parser
@@ -53,6 +60,7 @@ class PBSProDriver(SchedulerDriver):
         self.__read_only_resources: Optional[Set[str]] = None
         self.__jobs_cache: Optional[List[Job]] = None
         self.__scheduler_nodes_cache: Optional[List[Node]] = None
+        self.__node_history: Optional[NodeHistory] = None
         self.down_timeout = down_timeout
         self.down_timeout_td = datetime.timedelta(seconds=self.down_timeout)
 
@@ -102,6 +110,69 @@ class PBSProDriver(SchedulerDriver):
 
         node_mgr.add_default_resource({}, "ungrouped", ungrouped)
 
+    def validate_nodes(
+        self, scheduler_nodes: List[SchedulerNode], cc_nodes: List[Node]
+    ) -> None:
+        cc_by_node_id = partition_single(
+            cc_nodes, lambda n: n.delayed_node_id.node_id or n.hostname_or_uuid,
+        )
+        # Special case handling when users change their hostname after the node is already
+        # added to the cluster. Note that the hostname MUST MATCH THAT IN CYCLECLOUD!
+        # We also only do this for state-unknown,down nodes.
+
+        to_remove = []
+        for snode in scheduler_nodes:
+            ccnodeid = snode.resources.get("ccnodeid")
+            pbs_hostname = snode.hostname.lower()
+            if not ccnodeid:
+                continue
+
+            should_remove = False
+            if ccnodeid not in cc_by_node_id:
+                logging.warning(
+                    f"{snode.name} {snode.hostname} exists in the cluster but not in CycleCloud. Removing it."
+                )
+                should_remove = True
+
+            elif cc_by_node_id[ccnodeid].state == "Failed":
+                logging.warning(
+                    f"{snode.name} {snode.hostname} exists in the cluster but is in a Failed state. Removing it."
+                )
+                should_remove = True
+
+            if should_remove:
+                try:
+                    to_remove.append(snode)
+                    self.handle_post_delete([snode])
+                except Exception:
+                    logging.exception(f"Failed to remove node {pbs_hostname}")
+                continue
+
+            cc_node = cc_by_node_id[ccnodeid]
+            cc_hostname = cc_node.hostname.lower()
+
+            if pbs_hostname != cc_hostname:
+                logging.warning(
+                    f"The scheduler reports that node {cc_node.name} with node id "
+                    + f"{ccnodeid} has hostname {pbs_hostname}, but CycleCloud reports "
+                    + f"the hostname as {cc_hostname}"
+                )
+
+                if "busy" in snode.metadata.get("pbs_state", ""):
+                    continue
+
+                if "down" in snode.metadata.get("pbs_state", ""):
+                    logging.warning(
+                        f"Removing node {pbs_hostname} so that the correct hostname ({cc_hostname}) can join."
+                    )
+                    try:
+                        to_remove.append(snode)
+                        self.handle_post_delete([snode])
+                    except Exception:
+                        logging.exception(f"Failed to remove node {pbs_hostname}")
+        for snode in to_remove:
+            scheduler_nodes.remove(snode)
+
     def handle_failed_nodes(self, nodes: List[Node]) -> List[Node]:
         to_delete = []
         to_drain = []
@@ -113,8 +184,9 @@ class PBSProDriver(SchedulerDriver):
                 continue
 
             if node.state == "Failed":
-                node.closed = True
-                to_delete.append(node)
+                # node.closed = True
+                # if self._is_boot_timeout(now, node):
+                #     to_delete.append(node)
                 continue
 
             if not node.resources.get("ccnodeid"):
@@ -168,8 +240,21 @@ class PBSProDriver(SchedulerDriver):
 
         return False
 
+    def _is_boot_timeout(self, now: datetime.datetime, node: Node) -> bool:
+        boot_timeout = parse_boot_timeout(self.config, node)
+        omega = node.create_time + datetime.timedelta(seconds=boot_timeout)
+        return now > omega
+
+    def _is_idle_timeout(self, now: datetime.datetime, node: Node) -> bool:
+        idle_timeout = parse_idle_timeout(self.config, node)
+        omega = node.create_time + datetime.timedelta(seconds=idle_timeout)
+        return now > omega
+
     def add_nodes_to_cluster(self, nodes: List[Node]) -> List[Node]:
         self.initialize()
+        node_history = self.new_node_history(self.config)
+        ignored_nodes = node_history.find_ignored()
+        ignored_node_ids = [n[0] for n in ignored_nodes if n[0]]
 
         all_nodes = self.pbscmd.pbsnodes_parsed("-a")
         by_ccnodeid = partition(
@@ -178,13 +263,20 @@ class PBSProDriver(SchedulerDriver):
 
         ret = []
         for node in nodes:
+            if node.delayed_node_id.node_id in ignored_node_ids:
+                node.metadata["pbs_state"] = "removed!"
+                continue
             if not node.hostname:
                 continue
 
             if not node.private_ip:
                 continue
 
+            if node.state == "Failed":
+                continue
+
             node_id = node.delayed_node_id.node_id
+
             if not node_id:
                 logging.error("%s does not have a nodeid! Skipping", node)
                 continue
@@ -224,6 +316,10 @@ class PBSProDriver(SchedulerDriver):
                     ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
                     if ndicts and ndicts[0].get("resources_available.ccnodeid"):
                         comment = ndicts[0].get("comment", "")
+                        if comment.startswith("cyclecloud keep offline"):
+                            node.assign("keep_offline")
+                            continue
+
                         if "offline" in ndicts[0].get("state", "") and (
                             comment.startswith("cyclecloud offline")
                             or comment.startswith("cyclecloud joined")
@@ -392,10 +488,11 @@ class PBSProDriver(SchedulerDriver):
         for node in nodes:
             if not node.hostname:
                 continue
+
             try:
                 self.pbscmd.qmgr("list", "node", node.hostname)
             except CalledProcessError as e:
-                if "Server has no node list" in str(e):
+                if "Server has no node list" in str(e) or node.state == "Failed":
                     ret.append(node)
                     continue
                 logging.error(
@@ -756,7 +853,7 @@ def parse_scheduler_nodes(
     if ignore_hostnames_re_expr:
         try:
             ignore_hostnames_re = re.compile(ignore_hostnames_re_expr)
-        except:
+        except Exception:
             logging.exception(
                 f"Could not parse {ignore_hostnames_re_expr} as a regular expression"
             )
