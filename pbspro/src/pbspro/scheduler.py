@@ -13,9 +13,7 @@ from pbspro.resource import BooleanType, PBSProResourceDefinition, ResourceState
 
 class PBSProScheduler:
     def __init__(
-        self,
-        sched_dict: Dict[str, str],
-        resource_state: ResourceState,
+        self, sched_dict: Dict[str, str], resource_state: ResourceState,
     ) -> None:
         btype = BooleanType()
         self.do_not_span_psets = btype.parse(
@@ -33,8 +31,8 @@ class PBSProScheduler:
         self.sched_log = sched_dict["sched_log"]
         self.sched_priv = sched_dict["sched_priv"]
         priv_config_path = os.path.join(self.sched_priv, "sched_config")
-        self.resources_for_scheduling = (
-            get_pbspro_parser().parse_resources_from_sched_priv(priv_config_path)
+        self.resources_for_scheduling = get_pbspro_parser().parse_resources_from_sched_priv(
+            priv_config_path
         )
         self.state = sched_dict["state"]
         self.hostname = sched_dict["sched_host"].split(".")[0]
@@ -67,10 +65,7 @@ class PBSProScheduler:
         return self.sched_dict["name"] == "default"
 
     def __repr__(self) -> str:
-        return "Scheduler(hostname={}, state={})".format(
-            self.hostname,
-            self.state,
-        )
+        return "Scheduler(hostname={}, state={})".format(self.hostname, self.state,)
 
 
 def read_schedulers(

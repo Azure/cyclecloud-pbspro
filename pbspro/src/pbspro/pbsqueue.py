@@ -110,9 +110,11 @@ class PBSProQueue:
 
             if resource.is_host:
                 continue
-            
+
             if rname not in self.resource_state.shared_resources:
-                raise RuntimeError(f"Undefined resource {rname}. Is this a misconfigured server_dyn_res?")
+                raise RuntimeError(
+                    f"Undefined resource {rname}. Is this a misconfigured server_dyn_res?"
+                )
 
             shared_resource_list: List[
                 conslib.SharedResource
@@ -182,7 +184,7 @@ def read_queues(
         state_count = parser.parse_state_counts(qdict["state_count"])
 
         resource_state = parser.parse_resource_state(qdict, scheduler_shared_resources)
-        
+
         queue = PBSProQueue(
             name=qdict["name"],
             queue_type=qdict["queue_type"],
@@ -194,7 +196,8 @@ def read_queues(
             resources_default=parser.parse_resources_default(qdict),
             default_chunk=parser.parse_default_chunk(qdict),
             resource_definitions=resource_definitions,
-            enabled=qdict["enabled"].lower() == "true" and qdict["name"] not in ignore_queues,
+            enabled=qdict["enabled"].lower() == "true"
+            and qdict["name"] not in ignore_queues,
             started=qdict["started"].lower() == "true",
         )
         ret[queue.name] = queue

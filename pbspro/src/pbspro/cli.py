@@ -2,14 +2,16 @@ import json
 import sys
 from argparse import ArgumentParser
 from shutil import which
-from subprocess import check_output
+from subprocess import CalledProcessError, check_output
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from hpc.autoscale import clilib
+from hpc.autoscale import hpclogging as logging
 from hpc.autoscale.clilib import str_list
 from hpc.autoscale.job.demandcalculator import DemandCalculator
 from hpc.autoscale.job.driver import SchedulerDriver
 from hpc.autoscale.job.job import Job
+from hpc.autoscale.node.nodemanager import NodeManager
 from hpc.autoscale.results import DefaultContextHandler
 from hpc.autoscale.util import is_standalone_dns, partition_single
 
@@ -85,14 +87,7 @@ class PBSCLI(clilib.CommonCLI):
 
         return config.get(
             "output_columns",
-            [
-                "name",
-                "hostname",
-                "pbs_state",
-                "job_ids",
-                "state",
-                "vm_size",
-            ]
+            ["name", "hostname", "pbs_state", "job_ids", "state", "vm_size",]
             + resource_columns
             + [
                 "instance_id[:11]",
@@ -107,11 +102,16 @@ class PBSCLI(clilib.CommonCLI):
         return self.__pbs_env
 
     def _demand_calc(
-        self, config: Dict, driver: SchedulerDriver
+        self,
+        config: Dict,
+        driver: SchedulerDriver,
+        node_mgr: Optional[NodeManager] = None,
     ) -> Tuple[DemandCalculator, List[Job]]:
         pbs_driver: PBSProDriver = driver
         pbs_env = self._pbs_env(pbs_driver)
-        dcalc = new_demand_calculator(config, pbs_env=pbs_env, pbs_driver=pbs_driver)
+        dcalc = new_demand_calculator(
+            config, pbs_env=pbs_env, pbs_driver=pbs_driver, node_mgr=node_mgr
+        )
         return dcalc, pbs_env.jobs
 
     def _setup_shell_locals(self, config: Dict) -> Dict:
@@ -278,6 +278,56 @@ class PBSCLI(clilib.CommonCLI):
                         break
 
         sys.exit(exit)
+
+    def offline_parser(self, parser: ArgumentParser) -> None:
+        parser.set_defaults(read_only=False)
+        self._add_hostnames(parser)
+        self._add_nodenames(parser)
+        parser.add_argument("--comment", "-C", default="", required=False)
+
+    def offline(
+        self, config: Dict, hostnames: List[str], node_names: List[str], comment: str
+    ) -> None:
+        driver: PBSProDriver
+        driver_sched, _, nodes = self._find_nodes(config, hostnames, node_names)
+        driver = driver_sched  # type: ignore
+        exit_code = 0
+        actual_comment = (
+            f"cyclecloud keep offline: {comment}"
+            if comment
+            else "cyclecloud keep offline"
+        )
+        for node in nodes:
+            try:
+                driver.pbscmd.pbsnodes("-o", node.hostname, "-C", actual_comment)
+            except CalledProcessError as e:
+                logging.error(f"Could not set {node.hostname} offline - {e}")
+                exit_code = 1
+        sys.exit(exit_code)
+
+    def online_parser(self, parser: ArgumentParser) -> None:
+        parser.set_defaults(read_only=False)
+        self._add_hostnames(parser)
+        self._add_nodenames(parser)
+        parser.add_argument("--comment", "-C", default="", required=False)
+
+    def online(
+        self, config: Dict, hostnames: List[str], node_names: List[str], comment: str
+    ) -> None:
+        driver: PBSProDriver
+        driver_sched, _, nodes = self._find_nodes(config, hostnames, node_names)
+        driver = driver_sched  # type: ignore
+        exit_code = 0
+        actual_comment = (
+            f"cyclecloud restored: {comment}" if comment else "cyclecloud restored"
+        )
+        for node in nodes:
+            try:
+                driver.pbscmd.pbsnodes("-r", node.hostname, "-C", actual_comment)
+            except CalledProcessError as e:
+                logging.error(f"Could not set {node.hostname} offline - {e}")
+                exit_code = 1
+        sys.exit(exit_code)
 
 
 def main(argv: Iterable[str] = None) -> None:

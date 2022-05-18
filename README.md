@@ -20,12 +20,12 @@ in CycleCloud by specifying the PBSPro OSS version.
 
 Note: When using the cluster that is shipped with CycleCloud, the autoscaler and default queues are already installed.
 
-First, download the installer pkg from GitHub. For example, you can download the [2.0.11 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.11/cyclecloud-pbspro-pkg-2.0.11.tar.gz)
+First, download the installer pkg from GitHub. For example, you can download the [2.0.14 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.14/cyclecloud-pbspro-pkg-2.0.14.tar.gz)
 
 ```bash
 # Prerequisite: python3, 3.6 or newer, must be installed and in the PATH
-wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.11/cyclecloud-pbspro-pkg-2.0.11.tar.gz
-tar xzf cyclecloud-pbspro-pkg-2.0.11.tar.gz
+wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.14/cyclecloud-pbspro-pkg-2.0.14.tar.gz
+tar xzf cyclecloud-pbspro-pkg-2.0.14.tar.gz
 cd cyclecloud-pbspro
 # Optional, but recommended. Adds relevant resources and enables strict placement
 ./initialize_pbs.sh
@@ -273,7 +273,15 @@ execute Standard_F2s_v2 50
 execute Standard_D2_v4 50
 execute Standard_E2s_v4 50
 ```
-
+## Timeouts
+By default we set idle and boot timeouts across all nodes.
+```"idle_timeout": 300,
+   "boot_timeout": 3600
+```
+You can also set these per nodearray.
+```"idle_timeout": {"default": 300, "nodearray1": 600, "nodearray2": 900},
+   "boot_timeout": {"default": 3600, "nodearray1": 7200, "nodearray2": 900},
+```
 ## Logging
 By default, `azpbs` will use `/opt/cycle/pbspro/logging.conf`, as defined in `/opt/cycle/pbsspro/autoscale.json`. This will create the following logs.
 

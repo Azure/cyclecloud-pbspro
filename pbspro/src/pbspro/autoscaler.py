@@ -10,7 +10,7 @@ from hpc.autoscale.job import demandprinter
 from hpc.autoscale.job.demand import DemandResult
 from hpc.autoscale.job.demandcalculator import DemandCalculator
 from hpc.autoscale.node.nodehistory import NodeHistory
-from hpc.autoscale.node.nodemanager import new_node_manager
+from hpc.autoscale.node.nodemanager import NodeManager, new_node_manager
 from hpc.autoscale.results import DefaultContextHandler, register_result_handler
 from hpc.autoscale.util import SingletonLock, json_load
 
@@ -105,9 +105,15 @@ def autoscale_pbspro(
             "The following nodes have timed out while booting: %s", timed_out_booting
         )
         timed_out_to_deleted = pbs_driver.handle_boot_timeout(timed_out_booting) or []
+        for node in timed_out_booting:
+            node.closed = True
 
     if unmatched_for_5_mins:
-        logging.info("unmatched_for_5_mins %s", unmatched_for_5_mins)
+        logging.info(
+            "The following nodes have reached the idle_timeout (%s): %s",
+            idle_timeout,
+            unmatched_for_5_mins,
+        )
         unmatched_nodes_to_delete = (
             pbs_driver.handle_draining(unmatched_for_5_mins) or []
         )
@@ -146,6 +152,7 @@ def new_demand_calculator(
     ctx_handler: Optional[DefaultContextHandler] = None,
     node_history: Optional[NodeHistory] = None,
     singleton_lock: Optional[SingletonLock] = None,
+    node_mgr: Optional[NodeManager] = None,
 ) -> DemandCalculator:
     if pbs_driver is None:
         pbs_driver = PBSProDriver(config)
@@ -157,7 +164,9 @@ def new_demand_calculator(
         node_history = pbs_driver.new_node_history(config)
 
     # keep it as a config
-    node_mgr = new_node_manager(config, existing_nodes=pbs_env.scheduler_nodes)
+    node_mgr = node_mgr or new_node_manager(
+        config, existing_nodes=pbs_env.scheduler_nodes
+    )
     pbs_driver.preprocess_node_mgr(config, node_mgr)
     singleton_lock = singleton_lock or pbs_driver.new_singleton_lock(config)
     assert singleton_lock
@@ -246,10 +255,7 @@ def print_demand(
     output_format = output_format or "table"
 
     demandprinter.print_demand(
-        output_columns,
-        demand_result,
-        output_format=output_format,
-        log=log,
+        output_columns, demand_result, output_format=output_format, log=log,
     )
     return demand_result
 

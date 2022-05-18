@@ -8,11 +8,14 @@ pbsprover = node[:pbspro][:version]
 
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
+package_name = node[:pbspro][:package]
 
-if pbsprover.to_i < 20 
-  package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
-else
-  package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+if package_name == nil
+  if pbsprover.to_i < 20 
+    package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
+  else
+    package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+  end
 end
 
 jetpack_download package_name do
@@ -78,15 +81,31 @@ end
 node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
 bash "await-joining-cluster" do
-  code lazy { "/opt/pbs/bin/pbsnodes -o #{node[:hostname]}"}
-  only_if do 
-    lazy {
-      cmd = Mixlib::ShellOut.new('/opt/pbs/bin/pbsnodes -a')
-      list_of_pbs_nodes = cmd.run_command.stdout.strip().split("\n")
-      !list_of_pbs_nodes.include?(node[:hostname])
+  code lazy { <<-EOF 
+    node_attrs=$(/opt/pbs/bin/pbsnodes #{node[:hostname]})
+    if [ $? != 0 ]; then
+        echo "#{node[:hostname]} is not in the cluster yet. Retrying next converge" 1>&2
+        exit 1
+    fi
+
+    echo $node_attrs | grep -qi #{node[:cyclecloud][:node][:id]}
+    if [ $? != 0 ]; then
+      echo "Stale entry found for #{node[:hostname]}. Waiting for autoscaler to update this before joining." 1>&2
+      exit 1
+    fi
+
+    /opt/pbs/bin/pbsnodes -o #{node[:hostname]} -C 'cyclecloud offline' && touch #{node_created_guard}}
+    EOF
     }
-  end
   not_if {::File.exist?(node_created_guard)}
+  action :nothing
+end
+
+execute "await-node-definition" do
+  command "/opt/pbs/bin/pbsnodes #{node[:hostname]} || (echo '#{node[:hostname]} is not in the cluster yet. Retrying next converge' 1>&2; exit 1)"
+  retries 10
+  retry_delay 15
+  notifies :run, "bash[await-joining-cluster]", :immediately
 end
 
 defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do

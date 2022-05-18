@@ -104,7 +104,7 @@ def test_down_long_enough() -> None:
     now = datetime.datetime.now()
 
     # False: missing last_state_change_time
-    driver = PBSProDriver(down_timeout=300)
+    driver = PBSProDriver({}, down_timeout=300)
     assert not driver._down_long_enough(now, node)
 
     # False: last_state_change_time < 300 seconds ago

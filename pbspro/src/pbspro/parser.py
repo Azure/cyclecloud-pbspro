@@ -27,10 +27,7 @@ class PBSProParser:
     def resource_definitions(self) -> Dict[str, "PBSProResourceDefinition"]:
         return self.__resource_definitions
 
-    def convert_resource_list(
-        self,
-        raw_dict: Dict[str, Any],
-    ) -> Dict[str, Any]:
+    def convert_resource_list(self, raw_dict: Dict[str, Any],) -> Dict[str, Any]:
         """
         secondary parsing of Resource_List dictionary. Mostly this will convert
         resources to their appropriate type, as per PBSProResourceDefinition.parse
@@ -166,11 +163,15 @@ class PBSProParser:
                 assigned_value = res_assigned.get(res_name) or 0
                 res_def = self.resource_definitions.get(res_name)
                 if not res_def:
-                    logging.error(f"Unknown resource {res_name}. Will not be used for autoscale")
+                    logging.error(
+                        f"Unknown resource {res_name}. Will not be used for autoscale"
+                    )
                     continue
                 initial_value = res_def.type.parse(initial_value)
-                assigned_value = res_def.type.parse(assigned_value)
-                current_value = initial_value  - assigned_value
+                # type checking gets confused here, but by the time we are doing the `-`
+                # they will definitely be numeric
+                assigned_value = res_def.type.parse(assigned_value)  # type: ignore
+                current_value = initial_value - assigned_value  # type: ignore
 
                 if res_name not in shared_resources:
                     shared_resources[res_name] = []

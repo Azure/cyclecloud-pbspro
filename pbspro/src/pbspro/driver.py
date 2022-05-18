@@ -13,9 +13,16 @@ from hpc.autoscale.job.nodequeue import NodeQueue
 from hpc.autoscale.job.schedulernode import SchedulerNode
 from hpc.autoscale.node.constraints import SharedResource
 from hpc.autoscale.node.node import Node
+from hpc.autoscale.node.nodehistory import NodeHistory
 from hpc.autoscale.node.nodemanager import NodeManager
 from hpc.autoscale.results import EarlyBailoutResult
-from hpc.autoscale.util import is_valid_hostname, partition
+from hpc.autoscale.util import (
+    is_valid_hostname,
+    parse_boot_timeout,
+    parse_idle_timeout,
+    partition,
+    partition_single,
+)
 
 from pbspro.constants import PBSProJobStates
 from pbspro.parser import get_pbspro_parser
@@ -53,6 +60,7 @@ class PBSProDriver(SchedulerDriver):
         self.__read_only_resources: Optional[Set[str]] = None
         self.__jobs_cache: Optional[List[Job]] = None
         self.__scheduler_nodes_cache: Optional[List[Node]] = None
+        self.__node_history: Optional[NodeHistory] = None
         self.down_timeout = down_timeout
         self.down_timeout_td = datetime.timedelta(seconds=self.down_timeout)
 
@@ -102,6 +110,69 @@ class PBSProDriver(SchedulerDriver):
 
         node_mgr.add_default_resource({}, "ungrouped", ungrouped)
 
+    def validate_nodes(
+        self, scheduler_nodes: List[SchedulerNode], cc_nodes: List[Node]
+    ) -> None:
+        cc_by_node_id = partition_single(
+            cc_nodes, lambda n: n.delayed_node_id.node_id or n.hostname_or_uuid,
+        )
+        # Special case handling when users change their hostname after the node is already
+        # added to the cluster. Note that the hostname MUST MATCH THAT IN CYCLECLOUD!
+        # We also only do this for state-unknown,down nodes.
+
+        to_remove = []
+        for snode in scheduler_nodes:
+            ccnodeid = snode.resources.get("ccnodeid")
+            pbs_hostname = snode.hostname.lower()
+            if not ccnodeid:
+                continue
+
+            should_remove = False
+            if ccnodeid not in cc_by_node_id:
+                logging.warning(
+                    f"{snode.name} {snode.hostname} exists in the cluster but not in CycleCloud. Removing it."
+                )
+                should_remove = True
+
+            elif cc_by_node_id[ccnodeid].state == "Failed":
+                logging.warning(
+                    f"{snode.name} {snode.hostname} exists in the cluster but is in a Failed state. Removing it."
+                )
+                should_remove = True
+
+            if should_remove:
+                try:
+                    to_remove.append(snode)
+                    self.handle_post_delete([snode])
+                except Exception:
+                    logging.exception(f"Failed to remove node {pbs_hostname}")
+                continue
+
+            cc_node = cc_by_node_id[ccnodeid]
+            cc_hostname = cc_node.hostname.lower()
+
+            if pbs_hostname != cc_hostname:
+                logging.warning(
+                    f"The scheduler reports that node {cc_node.name} with node id "
+                    + f"{ccnodeid} has hostname {pbs_hostname}, but CycleCloud reports "
+                    + f"the hostname as {cc_hostname}"
+                )
+
+                if "busy" in snode.metadata.get("pbs_state", ""):
+                    continue
+
+                if "down" in snode.metadata.get("pbs_state", ""):
+                    logging.warning(
+                        f"Removing node {pbs_hostname} so that the correct hostname ({cc_hostname}) can join."
+                    )
+                    try:
+                        to_remove.append(snode)
+                        self.handle_post_delete([snode])
+                    except Exception:
+                        logging.exception(f"Failed to remove node {pbs_hostname}")
+        for snode in to_remove:
+            scheduler_nodes.remove(snode)
+
     def handle_failed_nodes(self, nodes: List[Node]) -> List[Node]:
         to_delete = []
         to_drain = []
@@ -109,9 +180,13 @@ class PBSProDriver(SchedulerDriver):
 
         for node in nodes:
 
+            if node.keep_alive:
+                continue
+
             if node.state == "Failed":
-                node.closed = True
-                to_delete.append(node)
+                # node.closed = True
+                # if self._is_boot_timeout(now, node):
+                #     to_delete.append(node)
                 continue
 
             if not node.resources.get("ccnodeid"):
@@ -122,7 +197,13 @@ class PBSProDriver(SchedulerDriver):
 
             job_state = node.metadata.get("pbs_state", "")
             if "down" in job_state:
+
                 node.closed = True
+                if "state-unknown" in job_state:
+                    logging.warning(
+                        "Node is in state-unknown - skipping scale down - %s", node
+                    )
+                    continue
                 # no private_ip == no dns entry, so we can safely remove it
                 if "offline" in job_state or not node.private_ip:
                     to_delete.append(node)
@@ -135,7 +216,7 @@ class PBSProDriver(SchedulerDriver):
             self.handle_draining(to_drain)
 
         if to_delete:
-            logging.info("Deleting down,offline nodes: %s", to_drain)
+            logging.info("Deleting down,offline nodes: %s", to_delete)
             return self.handle_post_delete(to_delete)
         return []
 
@@ -159,8 +240,21 @@ class PBSProDriver(SchedulerDriver):
 
         return False
 
+    def _is_boot_timeout(self, now: datetime.datetime, node: Node) -> bool:
+        boot_timeout = parse_boot_timeout(self.config, node)
+        omega = node.create_time + datetime.timedelta(seconds=boot_timeout)
+        return now > omega
+
+    def _is_idle_timeout(self, now: datetime.datetime, node: Node) -> bool:
+        idle_timeout = parse_idle_timeout(self.config, node)
+        omega = node.create_time + datetime.timedelta(seconds=idle_timeout)
+        return now > omega
+
     def add_nodes_to_cluster(self, nodes: List[Node]) -> List[Node]:
         self.initialize()
+        node_history = self.new_node_history(self.config)
+        ignored_nodes = node_history.find_ignored()
+        ignored_node_ids = [n[0] for n in ignored_nodes if n[0]]
 
         all_nodes = self.pbscmd.pbsnodes_parsed("-a")
         by_ccnodeid = partition(
@@ -169,13 +263,20 @@ class PBSProDriver(SchedulerDriver):
 
         ret = []
         for node in nodes:
+            if node.delayed_node_id.node_id in ignored_node_ids:
+                node.metadata["pbs_state"] = "removed!"
+                continue
             if not node.hostname:
                 continue
 
             if not node.private_ip:
                 continue
 
+            if node.state == "Failed":
+                continue
+
             node_id = node.delayed_node_id.node_id
+
             if not node_id:
                 logging.error("%s does not have a nodeid! Skipping", node)
                 continue
@@ -214,9 +315,26 @@ class PBSProDriver(SchedulerDriver):
                 try:
                     ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
                     if ndicts and ndicts[0].get("resources_available.ccnodeid"):
-                        logging.info(
-                            "ccnodeid is already defined on %s. Skipping", node
-                        )
+                        comment = ndicts[0].get("comment", "")
+                        if comment.startswith("cyclecloud keep offline"):
+                            node.assign("keep_offline")
+                            continue
+
+                        if "offline" in ndicts[0].get("state", "") and (
+                            comment.startswith("cyclecloud offline")
+                            or comment.startswith("cyclecloud joined")
+                            or comment.startswith("cyclecloud restored")
+                        ):
+                            logging.info(
+                                "%s is offline. Setting it back to online", node
+                            )
+                            self.pbscmd.pbsnodes(
+                                "-r", node.hostname, "-C", "cyclecloud restored"
+                            )
+                        else:
+                            logging.fine(
+                                "ccnodeid is already defined on %s. Skipping", node
+                            )
                         continue
                     # TODO RDH should we just delete it instead?
                     logging.info(
@@ -281,7 +399,7 @@ class PBSProDriver(SchedulerDriver):
                         "ccnodeid", node.resources["ccnodeid"]
                     ),
                 )
-                self.pbscmd.pbsnodes("-r", node.hostname)
+                self.pbscmd.pbsnodes("-r", node.hostname, "-C", "cyclecloud joined")
                 ret.append(node)
             except SubprocessError as e:
                 logging.error(
@@ -296,38 +414,57 @@ class PBSProDriver(SchedulerDriver):
         return nodes
 
     def handle_boot_timeout(self, nodes: List[Node]) -> List[Node]:
-        return nodes
+        return self._handle_draining(nodes, ignore_assignments=True)
 
     def handle_draining(self, nodes: List[Node]) -> List[Node]:
+        return self._handle_draining(nodes, ignore_assignments=False)
+
+    def _handle_draining(
+        self, nodes: List[Node], ignore_assignments: bool = False
+    ) -> List[Node]:
+        """
+        ignore_assignments - whether we should ignore assigned jobs by the autoscaler - note
+                             we do not ignore actual running jobs, only presumed to run jobs.
+        """
         # TODO batch these up, but keep it underneath the
         # max arg limit
         ret = []
         for node in nodes:
             if not node.hostname:
-                logging.info("Node %s has no hostname.", node)
+                logging.info("Node %s has no hostname. It is safe to delete.", node)
+                ret.append(node)
                 continue
-
-            # TODO implement after we have resources added back in
-            # what about deleting partially initialized nodes? I think we
-            # just need to skip non-managed nodes
-            # if not node.resources.get("ccnodeid"):
-            #     continue
 
             if not node.managed and not node.resources.get("ccnodeid"):
                 logging.debug("Ignoring attempt to drain unmanaged %s", node)
                 continue
 
             if "offline" in node.metadata.get("pbs_state", ""):
-                if node.assignments:
+                if node.assignments and not ignore_assignments:
                     logging.info("Node %s has jobs still running on it.", node)
                     # node is already 'offline' i.e. draining, but a job is still running
                     continue
                 else:
-                    # ok - it is offline _and_ no jobs are running on it.
-                    ret.append(node)
+                    if node.metadata.get("_running_job_"):
+                        logging.error(
+                            "Attempt to shutdown and remove %s while running job(s) %s",
+                            node,
+                            node.assignments,
+                        )
+                    else:
+                        # ok - it is offline _and_ no jobs are running on it.
+                        ret.append(node)
             else:
                 try:
-                    self.pbscmd.pbsnodes("-o", node.hostname)
+                    self.pbscmd.pbsnodes(node.hostname)
+                except CalledProcessError as e:
+                    if "Error: Unknown node" in str(e):
+                        ret.append(node)
+                        continue
+                try:
+                    self.pbscmd.pbsnodes(
+                        "-o", node.hostname, "-C", "cyclecloud offline"
+                    )
 
                     # # Due to a delay in when pbsnodes -o exits to when pbsnodes -a
                     # # actually reports an offline state, w ewill just optimistically set it to offline
@@ -351,10 +488,11 @@ class PBSProDriver(SchedulerDriver):
         for node in nodes:
             if not node.hostname:
                 continue
+
             try:
                 self.pbscmd.qmgr("list", "node", node.hostname)
             except CalledProcessError as e:
-                if "Server has no node list" in str(e):
+                if "Server has no node list" in str(e) or node.state == "Failed":
                     ret.append(node)
                     continue
                 logging.error(
@@ -715,8 +853,10 @@ def parse_scheduler_nodes(
     if ignore_hostnames_re_expr:
         try:
             ignore_hostnames_re = re.compile(ignore_hostnames_re_expr)
-        except:
-            logging.exception(f"Could not parse {ignore_hostnames_re_expr} as a regular expression")
+        except Exception:
+            logging.exception(
+                f"Could not parse {ignore_hostnames_re_expr} as a regular expression"
+            )
     ignored_hostnames = []
 
     for ndict in pbscmd.pbsnodes_parsed("-a"):
@@ -738,12 +878,16 @@ def parse_scheduler_nodes(
                 node,
             )
         ret.append(node)
-    
+
     if ignored_hostnames:
         if len(ignored_hostnames) < 5:
-            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames)}")
+            logging.info(
+                f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames)}"
+            )
         else:
-            logging.info(f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames[:5])}...")
+            logging.info(
+                f"Ignored {len(ignored_hostnames)} hostnames. {','.join(ignored_hostnames[:5])}..."
+            )
     return ret
 
 
@@ -768,9 +912,9 @@ def parse_scheduler_node(
         state = "partially-free"
 
     node.metadata["pbs_state"] = state
-
-    if "down" in state:
-        node.marked_for_deletion = True
+    # This ends up ignoring KeepAlive, so just let downstream handling of down/offline nodes.
+    # if "down" in state:
+    #     node.marked_for_deletion = True
 
     node.metadata["last_state_change_time"] = ndict.get("last_state_change_time", "")
 
@@ -786,6 +930,7 @@ def parse_scheduler_node(
             job_id = job_id_full
 
         node.assign(job_id)
+        node.metadata["_running_job_"] = True
 
         if "job_ids_long" not in node.metadata:
             node.metadata["job_ids_long"] = [job_id_full]
@@ -812,5 +957,7 @@ def parse_scheduler_node(
 
     if "exclusive" in node.metadata["pbs_state"]:
         node.closed = True
+
+    node.metadata["comment"] = ndict.get("comment", "")
 
     return node

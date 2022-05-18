@@ -215,8 +215,8 @@ Order = 15
         HideLabel = true
         Config.Plugin = pico.widget.HtmlTemplateWidget
         Config.Template = ''' <p>The directory <code>/sched</code> is a network attached mount and exists in all nodes of the cluster. 
-            GridEngine Root directory resides in this share. It's managed by the scheduler node. 
-            To disable the mount of the GridEngine directory, and to supply your own for a <strong>hybrid scenario</strong>, select the checkbox below '''
+            It's managed by the scheduler node. 
+            To disable the mount of the /sched directory, and to supply your own for a <strong>hybrid scenario</strong>, select the checkbox below '''
         Order = 6
 
         [[[parameter NFSSchedDisable]]]
