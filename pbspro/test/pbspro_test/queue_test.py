@@ -86,7 +86,7 @@ def test_non_schedulable_shared_resources() -> None:
         enabled=True,
         started=True,
     )
-    non_host_cons = test_queue.get_non_host_constraints({"qres": 1, "other": 2})
+    non_host_cons = test_queue.get_non_host_constraints({"qres": 1, "other": 2}, 1)
     assert len(non_host_cons) == 1
     assert len(non_host_cons[0].shared_resources) == 1
 
