@@ -820,7 +820,9 @@ def parse_jobs(
                     working_constraint = {rname: rvalue}
                     constraints.append(working_constraint)
 
-            queue_constraints = queue.get_non_host_constraints(job_resources)
+            queue_constraints = queue.get_non_host_constraints(
+                job_resources, node_count
+            )
             constraints.extend(queue_constraints)
 
             job = Job(

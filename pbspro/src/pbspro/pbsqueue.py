@@ -98,7 +98,7 @@ class PBSProQueue:
         return self.state_count.get("Begun", 0)
 
     def get_non_host_constraints(
-        self, pbs_resources: Dict[str, Any]
+        self, pbs_resources: Dict[str, Any], nodect: int
     ) -> List[conslib.NodeConstraint]:
         ret: List[conslib.NodeConstraint] = []
 
@@ -125,8 +125,11 @@ class PBSProQueue:
             ), "Error while processing queue/server resource {}".format(rname)
 
             if shared_resource_list[0].is_consumable:
+
                 ret.append(
-                    conslib.SharedConsumableConstraint(shared_resource_list, rvalue)
+                    conslib.SharedConsumableConstraint(
+                        shared_resource_list, rvalue / nodect
+                    )
                 )
             else:
                 ret.append(
