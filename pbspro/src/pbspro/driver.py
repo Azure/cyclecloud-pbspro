@@ -110,6 +110,10 @@ class PBSProDriver(SchedulerDriver):
 
         node_mgr.add_default_resource({}, "ungrouped", ungrouped)
 
+        for node in node_mgr.get_nodes():
+            if node.state == "Failed":
+                node.closed = True
+
     def validate_nodes(
         self, scheduler_nodes: List[SchedulerNode], cc_nodes: List[Node]
     ) -> None:
@@ -458,9 +462,14 @@ class PBSProDriver(SchedulerDriver):
                 try:
                     self.pbscmd.pbsnodes(node.hostname)
                 except CalledProcessError as e:
-                    if "Error: Unknown node" in str(e):
+
+                    if "Error: Unknown node" in str(e.stderr):
                         ret.append(node)
                         continue
+                    else:
+                        logging.warning(
+                            f"Unexpected failure while running 'pbsnodes {node.hostname}' - {e.stderr}"
+                        )
                 try:
                     self.pbscmd.pbsnodes(
                         "-o", node.hostname, "-C", "cyclecloud offline"
