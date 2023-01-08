@@ -150,13 +150,13 @@ Order = 1
         Config.Template = '''<table role="presentation"> <tr><td> <a> <img width="512" alt="Altair logo" src="static/cloud/cluster/ui/ClusterIcon/altair.png"> </a>  </td></tr> 
                                 <tr> <td> <p>&nbsp;</p> </td></tr> 
                                 <tr><td><big><b>Thank you for trying Altair&#0153 PBS Professional&#0153! </big> </b></td></tr> 
-                                <tr><td><p>Altair PBS Professional &#0153 is a fast, powerful workload manager designed to improve 
+                                <tr><td><p>Altair&#0153 PBS Professional&#0153 is a fast, powerful workload manager designed to improve 
                                            productivity, optimize utilization and efficiency, and simplify administration for clusters, 
                                            clouds, and supercomputers — from the biggest HPC workloads to millions of small, high-throughput 
                                            jobs. Altair PBS Professional &#0153 automates job scheduling, management, monitoring, and reporting, 
                                            and it's the trusted solution for complex Top500 systems as well as smaller clusters.</p> </td></tr> 
                                          <tr> <td> <p>&nbsp;</p> </td></tr> 
-                                         <tr><td> <p> <big><b>Additional Altair#0153 PBS Professional&#0153 Resources: </big> </b></p></td></tr> 
+                                         <tr><td> <p> <big><b>Additional Altair&#0153 PBS Professional&#0153 Resources: </big> </b></p></td></tr> 
                                          <tr><td><ul>
                                             <li><a href="https://www.altair.com/pbs-professional/">Altair PBS Professional Product Page </li>
                                             <li><a href="https://www.altair.com/resource/hpc-cloud-applications">Altair for HPC and Cloud </li>
