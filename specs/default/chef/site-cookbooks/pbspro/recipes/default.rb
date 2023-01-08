@@ -3,7 +3,6 @@
 #
 
 plat_ver = node['platform_version'].to_i
-pbsprover = node[:pbspro][:version]
 
 if plat_ver >= 8
   hwlocs_lib_el8 = node[:pbspro][:hwlocs_lib_el8]
