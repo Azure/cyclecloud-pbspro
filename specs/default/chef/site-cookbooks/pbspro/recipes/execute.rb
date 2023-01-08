@@ -10,12 +10,18 @@ plat_ver = node['platform_version'].to_i
 platform = node['platform_family']
 pbsdist = "el#{plat_ver}"
 package_name = node[:pbspro][:package]
+pbs_commercial = node[:pbspro][:commercial]
 
-if package_name == nil
-  if pbsprover.to_i < 20 
-    package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
-  else
-    package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+
+if pbs_commercial
+  package_name = "pbspro-execution-#{pbsprover}.#{pbsdist}.x86_64.rpm"
+else
+  if package_name == nil
+    if pbsprover.to_i < 20 
+      package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
+    else
+      package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+    end
   end
 end
 
