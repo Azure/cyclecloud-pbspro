@@ -369,6 +369,7 @@ Order = 20
         [[[parameter PBSLicenseServer]]]
         Label = Altair License Server location
         Description = Altair License Server location 
+        Required = True
 
         [[[parameter serverClusterInitSpecs]]]
         Label = Server Cluster-Init
