@@ -298,7 +298,7 @@ contains these values and nothing else.
 
 ## Using Altair PBS Professional in CycleCloud
 
-CycleCloud project for OpenPBS uses opensource version of OpenPB. You may use your own
+CycleCloud project for OpenPBS uses opensource version of OpenPBS. You may use your own
 [Altair PBS Professional](https://www.altair.com/pbs-professional/) licenses and installers according to your Altair PBS Professional license agreement.  
 This section documents how to use Altair PBS Professional with the CycleCloud OpenPBS project.
 
