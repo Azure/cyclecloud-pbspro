@@ -306,11 +306,11 @@ This section documents how to use Altair PBS Professional with the CycleCloud Op
 
 This example will use the 2022.1.1 version, which has been tested with the template.
 
-1. Users must provide Altair PBS Professional binaries (the same can work with RHEL 8.x with _.el8.x86_64.rpm_)
+1. Users must provide Altair PBS Professional binaries (the same works with RHEL 8.x with _.el8.x86_64.rpm_)
 
   * pbspro-client-2022.1.1.el7.x86_64.rpm
-  * pbspro-execution-2022.1.1.el8.x86_64.rpm
-  * pbspro-server-2022.1.1.el8.x86_64.rpm
+  * pbspro-execution-2022.1.1.el7.x86_64.rpm
+  * pbspro-server-2022.1.1.el7.x86_64.rpm
 
 2. A license server reachable from Azure CycleCloud Altair PBS Professional head node and execution nodes
 
@@ -319,7 +319,7 @@ This example will use the 2022.1.1 version, which has been tested with the templ
 
 ### Copy the binaries into the cloud locker
 
-To copy the installer with _azcopy_ to the Azure CycleCloud storage account, use the following commands:
+To copy the installer with _azcopy_ to the Azure CycleCloud storage account, use the following commands (the same works with RHEL 8.x with _.el8.x86_64.rpm_):
 
 ```bash
 
