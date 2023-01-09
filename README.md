@@ -323,9 +323,9 @@ To copy the installer with _azcopy_ to the Azure CycleCloud storage account, use
 
 ```bash
 
-$ azcopy cp pbspro-client-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/pbspro/blobs/
-$ azcopy cp pbspro-execution-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/pbspro/blobs/
-$ azcopy cp pbspro-server-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/pbspro/blobs/
+$ azcopy cp pbspro-client-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
+$ azcopy cp pbspro-execution-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
+$ azcopy cp pbspro-server-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
 ```
 
 ### Define license server
