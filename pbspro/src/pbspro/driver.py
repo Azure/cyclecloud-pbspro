@@ -115,7 +115,7 @@ class PBSProDriver(SchedulerDriver):
         )
 
         for node in node_mgr.get_nodes():
-            # close outt any failed nodes up front
+            # close out any failed nodes up front
             if node.state == "Failed":
                 node.closed = True
             
