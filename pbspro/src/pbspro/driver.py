@@ -109,6 +109,29 @@ class PBSProDriver(SchedulerDriver):
             return str(not bool(node.placement_group)).lower()
 
         node_mgr.add_default_resource({}, "ungrouped", ungrouped)
+        pbsnodes_response = self.pbscmd.pbsnodes_parsed("-a")
+        by_hostname = partition(
+            pbsnodes_response, lambda x: x.get("name")
+        )
+
+        for node in node_mgr.get_nodes():
+            # close out any failed nodes up front
+            if node.state == "Failed":
+                node.closed = True
+            
+            if not node.hostname:
+                continue
+            
+            # assign keep_offline to these nodes and close them off from further
+            # assignment
+            pbsnodes_record = by_hostname.get(node.hostname)
+
+            if pbsnodes_record and pbsnodes_record[0].get("resources_available.ccnodeid"):
+                comment = pbsnodes_record[0].get("comment", "")
+                if comment.startswith("cyclecloud keep offline"):
+                    node.assign("keep_offline")
+                    node.closed = True
+                    continue
 
     def validate_nodes(
         self, scheduler_nodes: List[SchedulerNode], cc_nodes: List[Node]
@@ -266,6 +289,7 @@ class PBSProDriver(SchedulerDriver):
             if node.delayed_node_id.node_id in ignored_node_ids:
                 node.metadata["pbs_state"] = "removed!"
                 continue
+
             if not node.hostname:
                 continue
 
@@ -273,6 +297,10 @@ class PBSProDriver(SchedulerDriver):
                 continue
 
             if node.state == "Failed":
+                continue
+
+            # special handling of "keep_offline" created during preprocess_node_mgr
+            if "keep_offline" in node.assignments:
                 continue
 
             node_id = node.delayed_node_id.node_id
@@ -316,9 +344,6 @@ class PBSProDriver(SchedulerDriver):
                     ndicts = self.pbscmd.qmgr_parsed("list", "node", node.hostname)
                     if ndicts and ndicts[0].get("resources_available.ccnodeid"):
                         comment = ndicts[0].get("comment", "")
-                        if comment.startswith("cyclecloud keep offline"):
-                            node.assign("keep_offline")
-                            continue
 
                         if "offline" in ndicts[0].get("state", "") and (
                             comment.startswith("cyclecloud offline")
@@ -458,9 +483,14 @@ class PBSProDriver(SchedulerDriver):
                 try:
                     self.pbscmd.pbsnodes(node.hostname)
                 except CalledProcessError as e:
-                    if "Error: Unknown node" in str(e):
+
+                    if "Error: Unknown node" in str(e.stderr):
                         ret.append(node)
                         continue
+                    else:
+                        logging.warning(
+                            f"Unexpected failure while running 'pbsnodes {node.hostname}' - {e.stderr}"
+                        )
                 try:
                     self.pbscmd.pbsnodes(
                         "-o", node.hostname, "-C", "cyclecloud offline"

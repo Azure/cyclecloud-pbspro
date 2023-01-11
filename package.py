@@ -140,9 +140,6 @@ def execute() -> None:
             assert False
 
     for fil in os.listdir(build_dir):
-        if fil.startswith("certifi-20"):
-            print("WARNING: Ignoring duplicate certifi {}".format(fil))
-            continue
         path = os.path.join(build_dir, fil)
         _add("packages/" + fil, path)
 
