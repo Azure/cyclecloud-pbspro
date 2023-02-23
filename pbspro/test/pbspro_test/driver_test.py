@@ -46,57 +46,6 @@ def test_parse_scheduler_node() -> None:
     assert expected.hostname == actual.hostname
     assert expected.resources == actual.resources
     assert expected.available == actual.available
-    # True: down for longer than 5 minutes
-    actual = parse_scheduler_node(
-        {
-            "name": "tux",
-            "resources_available.ncpus": 4,
-            "state": "down",
-            "last_state_change_time": "'Mon Jan 1 12:34:56 2001'",
-        },
-        get_pbspro_parser().resource_definitions,
-    )
-
-    assert actual.marked_for_deletion
-
-    # True: down and offline for longer than 5 minutes
-    actual = parse_scheduler_node(
-        {
-            "name": "tux",
-            "resources_available.ncpus": 4,
-            "state": "down,offline",
-            "last_state_change_time": "'Mon Jan 1 12:34:56 2001'",
-        },
-        get_pbspro_parser().resource_definitions,
-    )
-
-    assert actual.marked_for_deletion
-
-    # True: down and offline for less than 5 minutes
-    actual = parse_scheduler_node(
-        {
-            "name": "tux",
-            "resources_available.ncpus": 4,
-            "state": "down,offline",
-            "last_state_change_time": time.ctime(),
-        },
-        get_pbspro_parser().resource_definitions,
-    )
-
-    assert actual.marked_for_deletion
-
-    # True: down for less than 5 minutes
-    actual = parse_scheduler_node(
-        {
-            "name": "tux",
-            "resources_available.ncpus": 4,
-            "state": "down",
-            "last_state_change_time": time.ctime(),
-        },
-        get_pbspro_parser().resource_definitions,
-    )
-
-    assert actual.marked_for_deletion
 
 
 def test_down_long_enough() -> None:
