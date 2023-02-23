@@ -58,10 +58,12 @@ class PBSProParser:
     def parse_range_size(self, expr: str) -> int:
         """
         parses something like 1-100 as 100
-        or 1-100:2 as 50 etc
+        or 1-100:2 as 50 etcz
         We don't care (nor for efficiency, do we want to) to generate
         all possible numbers in the range, just the size.
         """
+        if "," in expr:
+            return sum([self.parse_range_size(sub_expr) for sub_expr in expr.split(",")])
         step = 1
         if ":" in expr:
             expr, step_expr = expr.split(":")

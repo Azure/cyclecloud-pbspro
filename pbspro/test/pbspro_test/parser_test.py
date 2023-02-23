@@ -48,3 +48,6 @@ def test_parse_range_size(parser: PBSProParser) -> None:
     assert 4 == parser.parse_range_size("1-10:3")
     assert 3 == parser.parse_range_size("1-9:3")
     assert 3 == parser.parse_range_size("101-109:3")
+
+    assert 5 == parser.parse_range_size("1-2,5-7")
+    assert 10 == parser.parse_range_size("1-2,5-7,11-20:2")
