@@ -286,6 +286,9 @@ class PBSProDriver(SchedulerDriver):
 
         ret = []
         for node in nodes:
+            if node.metadata.get("_marked_offline_this_iteration_"):
+                continue
+
             if node.delayed_node_id.node_id in ignored_node_ids:
                 node.metadata["pbs_state"] = "removed!"
                 continue
@@ -495,9 +498,10 @@ class PBSProDriver(SchedulerDriver):
                     self.pbscmd.pbsnodes(
                         "-o", node.hostname, "-C", "cyclecloud offline"
                     )
+                    node.metadata["_marked_offline_this_iteration_"] = True
 
                     # # Due to a delay in when pbsnodes -o exits to when pbsnodes -a
-                    # # actually reports an offline state, w ewill just optimistically set it to offline
+                    # # actually reports an offline state, we will just optimistically set it to offline
                     # # otherwise ~50% of the time you get the old state (free)
                     # response = self.pbscmd.pbsnodes_parsed("-a", node.hostname)
                     # if response:
