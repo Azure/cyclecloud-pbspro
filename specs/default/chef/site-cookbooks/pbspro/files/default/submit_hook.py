@@ -26,7 +26,7 @@ Quick start:
 Queue setup
     qmgr -c "set queue <queue_name> resources_default.slot_type = <queue_name>"
     qmgr -c "set queue <queue_name> default_chunk.slot_type = <queue_name>"
-git
+
 See PBS Professional Programmers Guide for detailed information.
 
 See /var/spool/pbs/server_logs/* for log messages
@@ -58,11 +58,13 @@ def hold_on_submit(hook_config, event):
     Hold every job so that we can process it properly in the periodic hook.
     """
     job = event.job
-    if job.Resource_List["nodes"]:
-        job.Resource_List[]
+    # Submit_arguments is not available at this point
+    if job.Resource_List["select"]:
+        debug("job %s has select syntax - not held/modified" % job.id)
+    else:
         debug(
             (
-                "holding job %s with hold_type 'so' because it uses -l nodes syntax."
+                "holding job %s with hold_type 'so' because it does not use -l select syntax"
                 + " It will be updated and released shortly."
             )
             % job.id
@@ -158,6 +160,8 @@ def periodic_release_hook(hook_config, e):
 
         j_queue = job["queue"]
         j_select = job["Resource_List"].get("select") or "1:ncpus=1"
+        j_submit_args = job["Submit_arguments"]
+        j_legacy = "select" not in j_submit_args
 
         # Check the groupid placement
         mj_place = job["Resource_List"].get("place")
@@ -172,7 +176,8 @@ def periodic_release_hook(hook_config, e):
                     # Do not override grouping if user specified it.
                     # -l place=scatter is automatically added to -l nodes jobs, so we will remove it here and if it is not
                     # overridden by the queue defaults, we will bring it back
-                    if job["Resource_List"].get("nodes"):
+                    if j_legacy:
+                        debug("no select in Submit_arguments %s" % j_submit_args)
                         mj_place_dict = {}
 
                     default_place = qstat_Qf_json["Queue"][j_queue][
@@ -194,14 +199,14 @@ def periodic_release_hook(hook_config, e):
 
                     # the job is a -l nodes job and the queue didn't specify arrangement or sharing
                     if (
-                        job["Resource_List"].get("nodes")
+                        j_legacy
                         and mj_place_dict.get("arrangement") is None
                         and mj_place_dict.get("sharing") is None
                     ):
                         mj_place_dict["arrangement"] = "scatter"
 
                     mj_place = format_place(mj_place_dict)
-                    debug("%s" % mj_place)
+                    debug("mj_place is %s" % mj_place)
 
         mj_place = format_place(mj_place_dict)
 
