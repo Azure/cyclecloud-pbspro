@@ -5,13 +5,30 @@
 include_recipe 'pbspro::default'
 
 pbsprover = node[:pbspro][:version]
+pbsprosupported = node[:pbspro][:supported]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
 
-if pbsprover.to_i < 20 
+if pbsprosupported == true
   package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
 else
-  package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+  if pbsprover.to_i < 20 
+    package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+  else
+    package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+  end
+end
+
+if pbsprosupported == true
+  user 'pbsdata' do
+    username 'pbsdata'
+  end
+  directory "/home/pbsdata" do
+    owner "pbsdata"
+    group "pbsdata"
+    mode "0700"
+    action :create
+  end
 end
 
 jetpack_download package_name do
