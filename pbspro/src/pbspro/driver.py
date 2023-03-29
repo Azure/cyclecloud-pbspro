@@ -758,7 +758,6 @@ def parse_jobs(
         # SMP style jobs
         is_smp = (
             rdict["place"].get("grouping") == "host"
-            or rdict["place"]["arrangement"] == "pack"
         )
 
         # pack jobs do not need to define node_count
@@ -867,16 +866,29 @@ def parse_jobs(
             )
             constraints.extend(queue_constraints)
 
-            job = Job(
-                name=my_job_id,
-                constraints=constraints,
-                iterations=iterations,
-                node_count=node_count,
-                colocated=colocated,
-                packing_strategy=pack,
-            )
-            job.iterations_remaining = remaining
-            ret.append(job)
+            if jdict.get("array"):
+                for i in range(0, remaining):
+                    job = Job(
+                        name=my_job_id + "[{}]".format(i),
+                        constraints=constraints,
+                        iterations=1,
+                        node_count=node_count,
+                        colocated=colocated,
+                        packing_strategy=pack,
+                    )
+                    job.iterations_remaining = 1
+                    ret.append(job)
+            else:
+                job = Job(
+                    name=my_job_id,
+                    constraints=constraints,
+                    iterations=iterations,
+                    node_count=node_count,
+                    colocated=colocated,
+                    packing_strategy=pack,
+                )
+                job.iterations_remaining = remaining
+                ret.append(job)
 
     return ret
 
