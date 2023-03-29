@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from argparse import ArgumentParser
 from shutil import which
@@ -32,6 +33,7 @@ class PBSCLI(clilib.CommonCLI):
         # lazily initialized
         self.__pbs_env: Optional[environment.PBSProEnvironment] = None
         self.__driver: Optional[PBSProDriver] = None
+        self.autoscale_dir = os.path.join("/", "opt", "cycle", "pbspro")
 
     def connect(self, config: Dict) -> None:
         """Tests connection to CycleCloud"""

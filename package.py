@@ -10,8 +10,8 @@ from argparse import Namespace
 from subprocess import check_call
 from typing import Dict, List, Optional
 
-SCALELIB_VERSION = "0.2.13"
-CYCLECLOUD_API_VERSION = "8.1.0"
+SCALELIB_VERSION = "1.0.0"
+CYCLECLOUD_API_VERSION = "8.3.1"
 
 
 def build_sdist() -> str:
@@ -32,15 +32,13 @@ def get_cycle_libs(args: Namespace) -> List[str]:
     ret = [build_sdist()]
 
     scalelib_file = "cyclecloud-scalelib-{}.tar.gz".format(SCALELIB_VERSION)
-    cyclecloud_api_file = "cyclecloud_api-{}-py2.py3-none-any.whl".format(
-        CYCLECLOUD_API_VERSION
-    )
+    cyclecloud_api_file = f"cyclecloud_api-{CYCLECLOUD_API_VERSION}-py2.py3-none-any.whl".format
 
-    scalelib_url = "https://github.com/Azure/cyclecloud-scalelib/archive/{}.tar.gz".format(
+    scalelib_url = "https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{}.tar.gz".format(
         SCALELIB_VERSION
     )
-    # TODO RDH!!!
-    cyclecloud_api_url = "https://github.com/Azure/cyclecloud-gridengine/releases/download/2.0.0/cyclecloud_api-8.0.1-py2.py3-none-any.whl"
+
+    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}"
     to_download = {
         scalelib_file: (args.scalelib, scalelib_url),
         cyclecloud_api_file: (args.cyclecloud_api, cyclecloud_api_url),
@@ -127,6 +125,14 @@ def execute() -> None:
     for fil in os.listdir(build_dir):
         toks = fil.split("-", 1)
         package = toks[0]
+        if "pyyaml" in fil.lower():
+            print("Ignoring pyyaml as it is not needed and is platform specific")
+            os.remove(os.path.join(build_dir, fil))
+            continue
+        if "itsdangerous" in fil.lower():
+            print("Ignoring itsdangerous as it is not needed and is platform specific")
+            os.remove(os.path.join(build_dir, fil))
+            continue
         if package == "cyclecloud":
             package = "{}-{}".format(toks[0], toks[1])
         if package not in by_package:

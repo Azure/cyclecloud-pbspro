@@ -1,4 +1,5 @@
 import datetime
+import os
 import re
 import socket
 from functools import lru_cache
@@ -63,6 +64,13 @@ class PBSProDriver(SchedulerDriver):
         self.__node_history: Optional[NodeHistory] = None
         self.down_timeout = down_timeout
         self.down_timeout_td = datetime.timedelta(seconds=self.down_timeout)
+
+    @property
+    def autoscale_home(self) -> str:
+        if os.getenv("AUTOSCALE_HOME"):
+            return os.environ["AUTOSCALE_HOME"]
+        return os.path.join("/opt", "cycle", self.name)
+
 
     @property
     def resource_definitions(self) -> Dict[str, PBSProResourceDefinition]:
