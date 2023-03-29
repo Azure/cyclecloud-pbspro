@@ -1,4 +1,5 @@
 import json
+import os
 from json.decoder import JSONDecodeError
 from shutil import which
 from subprocess import PIPE, CalledProcessError, check_output
@@ -11,14 +12,14 @@ from pbspro.parser import PBSProParser
 QSTAT_BIN = which("qstat") or ""
 QMGR_BIN = which("qmgr") or ""
 PBSNODES_BIN = which("pbsnodes") or ""
-# assert QSTAT_BIN
-# assert QMGR_BIN
 
 
 class PBSCMD:
     def __init__(self, parser: PBSProParser) -> None:
         super().__init__()
         self.parser = parser
+        if not QSTAT_BIN or not QMGR_BIN or not PBSNODES_BIN:
+            raise RuntimeError(f"Could not find qstat, qmgr and pbsnodes in the PATH. Current path is {os.environ['PATH']}")
 
     def qstat(self, *args: str) -> str:
         cmd = [QSTAT_BIN] + list(args)

@@ -7,6 +7,7 @@ include_recipe 'pbspro::default'
 pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
+cron_method = node[:pbspro][:cron_method] || "pbs_cron"
 
 if pbsprover.to_i < 20 
   package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
@@ -92,7 +93,7 @@ bash 'setup cyclecloud-pbspro' do
 
   ./initialize_default_queues.sh
 
-  ./install.sh --install-python3 --venv $INSTALLDIR/venv
+  ./install.sh --install-python3 --venv $INSTALLDIR/venv --cron-method #{cron_method}
   
   ./generate_autoscale_json.sh --install-dir $INSTALLDIR \
                                 --username #{node[:cyclecloud][:config][:username]} \
