@@ -32,11 +32,9 @@ def get_cycle_libs(args: Namespace) -> List[str]:
     ret = [build_sdist()]
 
     scalelib_file = "cyclecloud-scalelib-{}.tar.gz".format(SCALELIB_VERSION)
-    cyclecloud_api_file = f"cyclecloud_api-{CYCLECLOUD_API_VERSION}-py2.py3-none-any.whl".format
+    cyclecloud_api_file = f"cyclecloud_api-{CYCLECLOUD_API_VERSION}-py2.py3-none-any.whl"
 
-    scalelib_url = "https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{}.tar.gz".format(
-        SCALELIB_VERSION
-    )
+    scalelib_url = f"https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{SCALELIB_VERSION}.tar.gz"
 
     cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}"
     to_download = {

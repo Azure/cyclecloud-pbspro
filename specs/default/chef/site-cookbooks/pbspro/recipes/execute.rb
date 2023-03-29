@@ -7,6 +7,7 @@ include_recipe 'pbspro::default'
 pbsprover = node[:pbspro][:version]
 
 plat_ver = node['platform_version'].to_i
+platform = node['platform_family']
 pbsdist = "el#{plat_ver}"
 package_name = node[:pbspro][:package]
 

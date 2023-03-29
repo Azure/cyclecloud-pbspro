@@ -348,19 +348,19 @@ Order = 20
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8", "almalinux8"}
+        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
 
         [[[parameter ImageName]]]
         Label = Compute OS
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8", "almalinux8"}
+        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
 
         [[[parameter PBSVersion]]]
         Label = PBS Version
         Config.Plugin = pico.form.Dropdown
-        Config.Entries := {[Label="OpenPBS v20, el8-only"; Value="20.0.1-0"], [Label="PBSPro v18, el7-only"; Value="18.1.4-0"]}
+        Config.Entries := {[Label="OpenPBS v22, el8-only"; Value="22.05.11-0"], [Label="OpenPBS v20, el8-only"; Value="20.0.1-0"], [Label="PBSPro v18, el7-only"; Value="18.1.4-0"]}
         DefaultValue = 20.0.1-0
 
         [[[parameter serverClusterInitSpecs]]]

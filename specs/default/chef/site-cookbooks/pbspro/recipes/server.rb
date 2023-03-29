@@ -8,6 +8,7 @@ pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
 cron_method = node[:pbspro][:cron_method] || "pbs_cron"
+package_name = node[:pbspro][:package]
 
 ignore_workq = node[:pbspro][:queues][:workq][:ignore] || false
 ignore_htcq = node[:pbspro][:queues][:htcq][:ignore] || false
@@ -27,11 +28,12 @@ else
   ignore_queues_arg = ""
 end
 
-
-if pbsprover.to_i < 20 
-  package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
-else
-  package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+if package_name.nil?
+  if pbsprover.to_i < 20 
+    package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+  else
+    package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+  end
 end
 
 jetpack_download package_name do
@@ -49,6 +51,7 @@ else
     action :install
   end
 end
+
 
 directory "#{node[:pbspro][:autoscale_project_home]}" do
   owner "root"
