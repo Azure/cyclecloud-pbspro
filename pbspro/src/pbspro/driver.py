@@ -737,9 +737,6 @@ def parse_jobs(
 
         # handle array vs individual jobs
         if jdict.get("array"):
-            iterations = parser.parse_range_size(jdict["array_indices_submitted"])
-            remaining = parser.parse_range_size(jdict["array_indices_remaining"])
-        elif "[" in job_id:
             continue
         else:
             iterations = 1
@@ -758,7 +755,6 @@ def parse_jobs(
         # SMP style jobs
         is_smp = (
             rdict["place"].get("grouping") == "host"
-            or rdict["place"]["arrangement"] == "pack"
         )
 
         # pack jobs do not need to define node_count
