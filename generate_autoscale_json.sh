@@ -22,6 +22,7 @@ USERNAME=
 PASSWORD=
 URL=
 CLUSTER_NAME=
+IGNORE_QUEUES_ARG=
 
 function usage() {
     echo Usage: $0 --username username --password password --url https://fqdn:port --cluster-name cluster_name [--install-dir /opt/cycle/pbspro]
@@ -49,6 +50,10 @@ while (( "$#" )); do
             ;;
         --install-dir)
             INSTALLDIR=$2
+            shift 2
+            ;;
+        --ignore-queues)
+            IGNORE_QUEUES_ARG="--ignore-queues $2"
             shift 2
             ;;
         -*|--*=)
@@ -98,7 +103,7 @@ temp_autoscale=$TEMP/autoscale.json.$(date +%s)
                 --default-resource '{"select": {}, "name": "mem", "value": "node.memory"}' \
                 --default-resource '{"select": {}, "name": "vm_size", "value": "node.vm_size"}' \
                 --idle-timeout 300 \
-                --boot-timeout 3600 \
+                --boot-timeout 3600 $IGNORE_QUEUES_ARG\
                 > $temp_autoscale && mv $temp_autoscale $INSTALLDIR/autoscale.json ) || (rm -f $temp_autoscale.json; exit 1)
 
 echo testing that we can connect to CycleCloud...

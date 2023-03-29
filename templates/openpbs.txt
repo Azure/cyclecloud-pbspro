@@ -66,7 +66,8 @@ Autoscale = $Autoscale
         cyclecloud.mounts.nfs_sched.disabled = true
         cyclecloud.mounts.nfs_shared.disabled = ${NFSType != "External"}
         pbspro.cron_method = $AzpbsCronMethod
-
+        pbspro.queues.workq.ignore = ${Autoscale != true}
+        pbspro.queues.htcq.ignore = ${Autoscale != true}
 
         [[[cluster-init cyclecloud/pbspro:server]]]
         
@@ -129,7 +130,11 @@ Autoscale = $Autoscale
 
 
         [[[configuration]]]
-        autoscale.enabled = $Autoscale
+        # setting this completely disables the autoscaler from adding nodes to the cluster
+        # even manually created nodes. Instead, you can add this to your autoscale.json 
+        # {"pbspro": {"ignore_queues": ["workq", "htcq"]}}
+        # which is what pbspro.queues.workq.ignore does as well.
+        # autoscale.enabled = $Autoscale
         
         [[[cluster-init cyclecloud/pbspro:execute]]]
 
@@ -181,14 +186,15 @@ Order = 10
         Label = Autoscale
         DefaultValue = true
         Widget.Plugin = pico.form.BooleanCheckBox
-        Widget.Label = Start and stop execute instances automatically
+        Widget.Label = Start instances automatically. Shutdown is determined by Keep Alive.
 
         [[[parameter AzpbsCronMethod]]]
         Label = Cron Method
         DefaultValue = cron
-        Widget.Plugin = pico.form.SelectBox
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="Cron"; Value="cron"], [Label="PBS Timer Hook"; Value="pbs_hook"]}
         Config.Options = cron,pbs_hook
-        Description = The method used to run the azpbs cron job.  Cron is the default and will run the azpbs cron job 15 seconds.  The pbs_hook method will do the same but use PBS built-in timer.
+        Description = "The method used to run the azpbs cron job.  Cron is the default and will run the azpbs cron job 15 seconds.  The pbs_hook method will do the same but use PBS built-in timer."
 
         [[[parameter MaxExecuteCoreCount]]]
         Label = Max Cores

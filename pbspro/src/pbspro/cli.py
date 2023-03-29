@@ -60,6 +60,13 @@ class PBSCLI(clilib.CommonCLI):
             default=["host", "vnode"],
         )
 
+        parser.add_argument(
+            "--ignore-queues",
+            dest="pbspro__ignore_queues",
+            type=str_list,
+            default=[],
+        )
+
     def _default_output_columns(
         self, config: Dict, cmd: Optional[str] = None
     ) -> List[str]:
