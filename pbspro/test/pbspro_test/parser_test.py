@@ -42,6 +42,7 @@ def test_parse_defaults(parser: PBSProParser) -> None:
 
 def test_parse_range_size(parser: PBSProParser) -> None:
     assert 1 == parser.parse_range_size("1")
+    assert 1 == parser.parse_range_size("4")
     assert 10 == parser.parse_range_size("1-10")
     assert 5 == parser.parse_range_size("1-10:2")
     assert 5 == parser.parse_range_size("1-9:2")

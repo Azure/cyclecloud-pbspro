@@ -70,7 +70,7 @@ class PBSProParser:
             step = int(step_expr)
 
         if "-" not in expr:
-            return int(expr)
+            return 1
 
         start, stop = [int(x) for x in expr.split("-")]
         total_range = stop - start + 1
