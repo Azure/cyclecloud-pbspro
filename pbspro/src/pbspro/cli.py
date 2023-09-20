@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from argparse import ArgumentParser
 from shutil import which
@@ -32,6 +33,7 @@ class PBSCLI(clilib.CommonCLI):
         # lazily initialized
         self.__pbs_env: Optional[environment.PBSProEnvironment] = None
         self.__driver: Optional[PBSProDriver] = None
+        self.autoscale_dir = os.path.join("/", "opt", "cycle", "pbspro")
 
     def connect(self, config: Dict) -> None:
         """Tests connection to CycleCloud"""
@@ -58,6 +60,13 @@ class PBSCLI(clilib.CommonCLI):
             dest="pbspro__read_only_resources",
             type=str_list,
             default=["host", "vnode"],
+        )
+
+        parser.add_argument(
+            "--ignore-queues",
+            dest="pbspro__ignore_queues",
+            type=str_list,
+            default=[],
         )
 
     def _default_output_columns(

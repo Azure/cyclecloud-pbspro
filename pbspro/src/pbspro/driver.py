@@ -1,4 +1,5 @@
 import datetime
+import os
 import re
 import socket
 from functools import lru_cache
@@ -63,6 +64,13 @@ class PBSProDriver(SchedulerDriver):
         self.__node_history: Optional[NodeHistory] = None
         self.down_timeout = down_timeout
         self.down_timeout_td = datetime.timedelta(seconds=self.down_timeout)
+
+    @property
+    def autoscale_home(self) -> str:
+        if os.getenv("AUTOSCALE_HOME"):
+            return os.environ["AUTOSCALE_HOME"]
+        return os.path.join("/opt", "cycle", self.name)
+
 
     @property
     def resource_definitions(self) -> Dict[str, PBSProResourceDefinition]:
@@ -286,6 +294,9 @@ class PBSProDriver(SchedulerDriver):
 
         ret = []
         for node in nodes:
+            if node.metadata.get("_marked_offline_this_iteration_"):
+                continue
+
             if node.delayed_node_id.node_id in ignored_node_ids:
                 node.metadata["pbs_state"] = "removed!"
                 continue
@@ -495,9 +506,10 @@ class PBSProDriver(SchedulerDriver):
                     self.pbscmd.pbsnodes(
                         "-o", node.hostname, "-C", "cyclecloud offline"
                     )
+                    node.metadata["_marked_offline_this_iteration_"] = True
 
                     # # Due to a delay in when pbsnodes -o exits to when pbsnodes -a
-                    # # actually reports an offline state, w ewill just optimistically set it to offline
+                    # # actually reports an offline state, we will just optimistically set it to offline
                     # # otherwise ~50% of the time you get the old state (free)
                     # response = self.pbscmd.pbsnodes_parsed("-a", node.hostname)
                     # if response:
@@ -725,9 +737,6 @@ def parse_jobs(
 
         # handle array vs individual jobs
         if jdict.get("array"):
-            iterations = parser.parse_range_size(jdict["array_indices_submitted"])
-            remaining = parser.parse_range_size(jdict["array_indices_remaining"])
-        elif "[" in job_id:
             continue
         else:
             iterations = 1
@@ -746,7 +755,6 @@ def parse_jobs(
         # SMP style jobs
         is_smp = (
             rdict["place"].get("grouping") == "host"
-            or rdict["place"]["arrangement"] == "pack"
         )
 
         # pack jobs do not need to define node_count

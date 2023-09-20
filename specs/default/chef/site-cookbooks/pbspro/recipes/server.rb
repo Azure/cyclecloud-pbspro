@@ -7,11 +7,33 @@ include_recipe 'pbspro::default'
 pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
+cron_method = node[:pbspro][:cron_method] || "pbs_cron"
+package_name = node[:pbspro][:package]
 
-if pbsprover.to_i < 20 
-  package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+ignore_workq = node[:pbspro][:queues][:workq][:ignore] || false
+ignore_htcq = node[:pbspro][:queues][:htcq][:ignore] || false
+
+ignored_queues = []
+if ignore_workq
+  ignored_queues.push("workq")
+end
+
+if ignore_htcq
+  ignored_queues.push("htcq")
+end
+
+if !ignored_queues.empty?
+  ignore_queues_arg = "--ignore-queues " + ignored_queues.join(",") 
 else
-  package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+  ignore_queues_arg = ""
+end
+
+if package_name.nil?
+  if pbsprover.to_i < 20 
+    package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+  else
+    package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+  end
 end
 
 jetpack_download package_name do
@@ -29,6 +51,7 @@ else
     action :install
   end
 end
+
 
 directory "#{node[:pbspro][:autoscale_project_home]}" do
   owner "root"
@@ -92,13 +115,14 @@ bash 'setup cyclecloud-pbspro' do
 
   ./initialize_default_queues.sh
 
-  ./install.sh --install-python3 --venv $INSTALLDIR/venv
+  ./install.sh --install-python3 --venv $INSTALLDIR/venv --cron-method #{cron_method}
   
   ./generate_autoscale_json.sh --install-dir $INSTALLDIR \
                                 --username #{node[:cyclecloud][:config][:username]} \
                                 --password "#{node[:cyclecloud][:config][:password]}" \
                                 --url #{node[:cyclecloud][:config][:web_server]} \
-                                --cluster-name #{node[:cyclecloud][:cluster][:name]}
+                                --cluster-name #{node[:cyclecloud][:cluster][:name]} \
+                                #{ignore_queues_arg}
 
   ls #{node[:pbspro][:autoscale_project_home]}/autoscale.json || exit 1
   azpbs connect || exit 1

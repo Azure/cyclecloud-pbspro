@@ -11,6 +11,8 @@ SCHEDULER=pbspro
 INSTALL_PYTHON3=0
 INSTALL_VIRTUALENV=0
 VENV=/opt/cycle/${SCHEDULER}/venv
+CRON_METHOD=pbs_hook
+
 mkdir -p /opt/cycle/${SCHEDULER}/server_dyn_res
 cp server_dyn_res_wrapper.sh /opt/cycle/${SCHEDULER}/
 chmod +x /opt/cycle/${SCHEDULER}/server_dyn_res_wrapper.sh
@@ -30,6 +32,10 @@ while (( "$#" )); do
             ;;
         --venv)
             VENV=$2
+            shift 2
+            ;;
+        --cron-method)
+            CRON_METHOD=$2
             shift 2
             ;;
         -*|--*=)
@@ -113,11 +119,22 @@ EOF
 
 cp autoscale_hook.py $INSTALL_DIR/
 cp logging.conf $INSTALL_DIR/
-/opt/pbs/bin/qmgr -c "list hook autoscale" 1>&2 2>/dev/null || /opt/pbs/bin/qmgr -c "create hook autoscale" 1>&2
-/opt/pbs/bin/qmgr -c "import hook autoscale application/x-python default $INSTALL_DIR/autoscale_hook.py"
-/opt/pbs/bin/qmgr -c "import hook autoscale application/x-config default $INSTALL_DIR/autoscale_hook_config.json"
-/opt/pbs/bin/qmgr -c "set hook autoscale event = periodic"
-/opt/pbs/bin/qmgr -c "set hook autoscale freq = 15"
+
+if [ "$CRON_METHOD" == "pbs_hook" ]; then
+    /opt/pbs/bin/qmgr -c "list hook autoscale" 1>&2 2>/dev/null || /opt/pbs/bin/qmgr -c "create hook autoscale" 1>&2
+    /opt/pbs/bin/qmgr -c "import hook autoscale application/x-python default $INSTALL_DIR/autoscale_hook.py"
+    /opt/pbs/bin/qmgr -c "import hook autoscale application/x-config default $INSTALL_DIR/autoscale_hook_config.json"
+    /opt/pbs/bin/qmgr -c "set hook autoscale event = periodic"
+    /opt/pbs/bin/qmgr -c "set hook autoscale freq = 15"
+else
+    echo Installing cron job
+    cat > /etc/cron.d/azpbs_autoscale<<EOF
+* * * * * root /opt/cycle/jetpack/system/bootstrap/cron_wrapper.sh $VENV/bin/azpbs autoscale --config $INSTALL_DIR/autoscale.json 2>$INSTALL_DIR/last_cron.log
+* * * * * root sleep 15 && /opt/cycle/jetpack/system/bootstrap/cron_wrapper.sh $VENV/bin/azpbs autoscale --config $INSTALL_DIR/autoscale.json 2>$INSTALL_DIR/last_cron.log
+* * * * * root sleep 30 && /opt/cycle/jetpack/system/bootstrap/cron_wrapper.sh $VENV/bin/azpbs autoscale --config $INSTALL_DIR/autoscale.json 2>$INSTALL_DIR/last_cron.log
+* * * * * root sleep 45 && /opt/cycle/jetpack/system/bootstrap/cron_wrapper.sh $VENV/bin/azpbs autoscale --config $INSTALL_DIR/autoscale.json 2>$INSTALL_DIR/last_cron.log
+EOF
+fi
 
 if [ -e /etc/profile.d ]; then
     cat > /etc/profile.d/azpbs_autocomplete.sh<<EOF
