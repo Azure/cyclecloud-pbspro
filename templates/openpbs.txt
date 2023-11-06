@@ -137,6 +137,7 @@ Autoscale = $Autoscale
 
     Interruptible = $UseLowPrio
     AdditionalClusterInitSpecs = $ExecuteClusterInitSpecs
+    EnableNodeHealthChecks = $EnableNodeHealthChecks
 
 
         [[[configuration]]]
@@ -433,3 +434,13 @@ Order = 20
         ParameterType = Boolean
         Config.Label = Access execute nodes from the Internet
         Conditions.Excluded := UsePublicNetwork isnt true
+
+    [[parameters Node Health Checks]]
+        Description = "Section for configuring Node Health Checks"
+        Order = 12
+
+            [[[parameter EnableNodeHealthChecks]]]
+            Label = Enable NHC tests
+            DefaultValue = false
+            Widget.Plugin = pico.form.BooleanCheckBox
+            Widget.Label = Run Node Health Checks on startup
