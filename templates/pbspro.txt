@@ -6,6 +6,7 @@
 [cluster Altair PBS Professional]
 FormLayout = selectionpanel
 Category = Schedulers
+IconURL="static/cloud/cluster/ui/ClusterIcon/altair-icon.png"
 
 Autoscale = $Autoscale
 
