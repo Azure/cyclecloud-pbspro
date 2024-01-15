@@ -6,7 +6,6 @@
 [cluster Altair PBS Professional]
 FormLayout = selectionpanel
 Category = Schedulers
-IconURL="static/cloud/cluster/ui/ClusterIcon/altair-icon.png"
 
 Autoscale = $Autoscale
 
@@ -17,6 +16,7 @@ Autoscale = $Autoscale
     SubnetId = $SubnetId
     Region = $Region
     KeyPairLocation = ~/.ssh/cyclecloud.pem
+    Azure.Identities = $ManagedIdentity
     
         [[[configuration]]]
         pbspro.version = $PBSVersion
@@ -35,8 +35,16 @@ Autoscale = $Autoscale
         cyclecloud.exports.defaults.samba.enabled = false      
         cshared.server.legacy_links_disabled = true
 
+        # May be used to identify the ID in cluster-init scripts
+        cluster.identities.default = $ManagedIdentity
+	
         [[[cluster-init cyclecloud/pbspro:default]]]
         Optional = false
+
+
+        [[[volume boot]]]
+        Size = ${ifThenElse(BootDiskSize > 0, BootDiskSize, undefined)}
+        SSD = True
 
         [[[configuration cyclecloud.mounts.nfs_shared]]]
         type = nfs
@@ -68,7 +76,9 @@ Autoscale = $Autoscale
         [[[configuration]]]
         cyclecloud.mounts.nfs_sched.disabled = true
         cyclecloud.mounts.nfs_shared.disabled = ${NFSType != "External"}
-
+        pbspro.cron_method = $AzpbsCronMethod
+        pbspro.queues.workq.ignore = ${Autoscale != true}
+        pbspro.queues.htcq.ignore = ${Autoscale != true}
 
         [[[cluster-init cyclecloud/pbspro:server]]]
         
@@ -119,8 +129,9 @@ Autoscale = $Autoscale
     MachineType = $serverMachineType
         
 	[[[cluster-init cyclecloud/pbspro:login]]]
-    [[[configuration]]]
-    autoscale.enabled = false
+	
+	[[[configuration]]]
+	autoscale.enabled = false
 
     [[nodearray execute]]
     MachineType = $ExecuteMachineType
@@ -128,10 +139,15 @@ Autoscale = $Autoscale
 
     Interruptible = $UseLowPrio
     AdditionalClusterInitSpecs = $ExecuteClusterInitSpecs
+    EnableNodeHealthChecks = $EnableNodeHealthChecks
 
 
         [[[configuration]]]
-        autoscale.enabled = $Autoscale
+        # setting this completely disables the autoscaler from adding nodes to the cluster
+        # even manually created nodes. Instead, you can add this to your autoscale.json 
+        # {"pbspro": {"ignore_queues": ["workq", "htcq"]}}
+        # which is what pbspro.queues.workq.ignore does as well.
+        # autoscale.enabled = $Autoscale
         
         [[[cluster-init cyclecloud/pbspro:execute]]]
 
@@ -142,7 +158,7 @@ Autoscale = $Autoscale
 [parameters About]
 Order = 1
 
-    [[parameters About Altair PBS Professional]]
+   [[parameters About Altair PBS Professional]]
 
         [[[parameter pbspro]]]
         HideLabel = true
@@ -189,14 +205,22 @@ Order = 10
 
 
     [[parameters Auto-Scaling]]
-    Description = "The cluster can autoscale to the workload, adding execute hosts as jobs are queued. To enable this check the box below and choose the initial and maximum core counts for the cluster"
+    Description = "The cluster can autoscale to the workload, adding execute hosts as jobs are queued. To enable this, check the box below and choose the initial and maximum core counts for the cluster."
     Order = 30
 
         [[[parameter Autoscale]]]
         Label = Autoscale
         DefaultValue = true
         Widget.Plugin = pico.form.BooleanCheckBox
-        Widget.Label = Start and stop execute instances automatically
+        Widget.Label = Start instances automatically. Shutdown is determined by Keep Alive.
+
+        [[[parameter AzpbsCronMethod]]]
+        Label = Cron Method
+        DefaultValue = cron
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="Cron"; Value="cron"], [Label="PBS Timer Hook"; Value="pbs_hook"]}
+        Config.Options = cron,pbs_hook
+        Description = "The method used to run the azpbs cron job.  Cron is the default and will run the azpbs cron job 15 seconds.  The pbs_hook method will do the same but use PBS built-in timer."
 
         [[[parameter MaxExecuteCoreCount]]]
         Label = Max Cores
@@ -232,7 +256,7 @@ Order = 15
         Config.Plugin = pico.widget.HtmlTemplateWidget
         Config.Template = ''' <p>The directory <code>/sched</code> is a network attached mount and exists in all nodes of the cluster. 
             It's managed by the scheduler node. 
-            To disable the mount of the /sched directory, and to supply your own for a <strong>hybrid scenario</strong>, select the checkbox below '''
+            To disable the mount of the /sched directory, and to supply your own for a <strong>hybrid scenario</strong>, select the checkbox below.'''
         Order = 6
 
         [[[parameter NFSSchedDisable]]]
@@ -246,7 +270,7 @@ Order = 15
         [[[parameter About shared]]]
         HideLabel = true
         Config.Plugin = pico.widget.HtmlTemplateWidget
-        Config.Template := "<p>The directory <code>/shared</code> is a network attached mount and exists in all nodes of the cluster. Users' home directories reside within this mountpoint with the base homedir <code>/shared/home</code>.<br><br>There are two options for providing this mount:<br> <strong>[Builtin]</strong>: The scheduler node is an NFS server that provides the mountpoint to the other nodes of the cluster.<br> <strong>[External NFS]</strong>: A network attached storage such as Azure Netapp Files, HPC Cache, or another VM running an NFS server, provides the mountpoint.</p>"
+        Config.Template := "<p>The directory <code>/shared</code> is a network attached mount and exists in all nodes of the cluster. Users' home directories reside within this mountpoint with the base homedir <code>/shared/home</code>.<br><br>There are two options for providing this mount:<br> <strong>[Builtin]</strong>: The scheduler node is an NFS server that provides the mountpoint to the other nodes of the cluster.<br> <strong>[External NFS]</strong>: A network attached storage such as Azure Netapp Files, HPC Cache, or another VM running an NFS server, provides the mountpoint.</p><p>Note: the cluster must be terminated for this to take effect.</p>"
         Order = 20
 
         [[[parameter NFSType]]]
@@ -256,6 +280,12 @@ Order = 15
         Config.Plugin = pico.form.Dropdown
         Config.Entries := {[Label="External NFS"; Value="External"], [Label="Builtin"; Value="Builtin"]}
         DefaultValue = Builtin
+
+	[[[parameter NFSDiskWarning]]]
+	HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template := "<p><b>Warning</b>: switching an active cluster over to NFS will delete the shared disk.</p>"
+        Conditions.Hidden := NFSType != "External"
 
         [[[parameter NFSAddress]]]
         Label = NFS IP Address
@@ -276,7 +306,7 @@ Order = 15
 
         [[[parameter FilesystemSize]]]
         Label = Size (GB)
-        Description = The filesystem size
+        Description = The filesystem size (cannot be changed after initial start)
         DefaultValue = 100
 
         Config.Plugin = pico.form.NumberTextBox
@@ -290,7 +320,7 @@ Order = 15
         [[[parameter Additional NFS Mount Readme]]]
         HideLabel = true
         Config.Plugin = pico.widget.HtmlTemplateWidget
-        Config.Template := "<p>Mount another NFS endpoint on the cluster nodes</p>"
+        Config.Template := "<p>Mount another NFS endpoint on the cluster nodes.</p>"
         Order = 20
 
         [[[parameter AdditionalNAS]]]
@@ -334,14 +364,26 @@ Order = 20
         Description = The credentials for the cloud provider
         ParameterType = Cloud.Credentials
 
-    [[parameters PBSPro Settings ]]
-    Description = "Section for configuring OpenPBS"
-    Order = 5
+        [[[parameter ManagedIdentity]]]
+        Label = Managed Id
+        Description = Optionally assign an Azure user assigned managed identity to all nodes to access Azure resources using assigned roles.
+        ParameterType = Azure.ManagedIdentity
+        DefaultValue = =undefined
 
-        
+        [[[parameter BootDiskSize]]]
+        Description = Optional: Size of the OS/boot disk in GB for all nodes in the cluster (leave at 0 to use Image size)
+        ParameterType = Integer
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 0
+        Config.MaxValue = 32,000
+        Config.IntegerOnly = true
+        Config.Increment = 64
+        DefaultValue = 0
+
+
 
     [[parameters Software]]
-    Description = "Specify the scheduling software, and base OS installed on all nodes, and optionally the cluster-init and chef versions from your Locker."
+    Description = "Specify the scheduling software, and base OS installed on all nodes, and optionally the cluster-init and chef versions from your locker."
     Order = 10
 
 
@@ -350,14 +392,14 @@ Order = 20
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8", "almalinux8"}
+        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
 
         [[[parameter ImageName]]]
         Label = Compute OS
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "cycle.image.centos8", "almalinux8"}
+        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
 
         [[[parameter PBSVersion]]]
         Label = Altair PBS Version
@@ -393,7 +435,6 @@ Order = 20
 	
 
     [[parameters Advanced Networking]]
-    Description = Advanced networking settings
 
         [[[parameter ReturnProxy]]]
         Label = Return Proxy
@@ -413,3 +454,13 @@ Order = 20
         ParameterType = Boolean
         Config.Label = Access execute nodes from the Internet
         Conditions.Excluded := UsePublicNetwork isnt true
+
+    [[parameters Node Health Checks]]
+        Description = "Section for configuring Node Health Checks"
+        Order = 12
+
+            [[[parameter EnableNodeHealthChecks]]]
+            Label = Enable NHC tests
+            DefaultValue = false
+            Widget.Plugin = pico.form.BooleanCheckBox
+            Widget.Label = Run Node Health Checks on startup
