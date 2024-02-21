@@ -8,12 +8,18 @@ pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
 package_name = node[:pbspro][:package]
+pbs_professional = node[:pbspro][:professional]
 
-if package_name.nil?
-  if pbsprover.to_i < 20 
-    package_name = "pbspro-client-#{pbsprover}.x86_64.rpm"
-  else
-    package_name = "openpbs-client-#{pbsprover}.x86_64.rpm"
+
+if pbs_professional
+  package_name = "pbspro-client-#{pbsprover}.#{pbsdist}.x86_64.rpm"
+else
+  if package_name.nil?
+    if pbsprover.to_i < 20 
+      package_name = "pbspro-client-#{pbsprover}.x86_64.rpm"
+    else
+      package_name = "openpbs-client-#{pbsprover}.x86_64.rpm"
+    end
   end
 end
 

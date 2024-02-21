@@ -296,6 +296,79 @@ By default, `azpbs` will use `/opt/cycle/pbspro/logging.conf`, as defined in `/o
 Every `autoscale` iteration, `azpbs` prints out a table of all of the nodes, their resources, their assigned jobs and more. This log
 contains these values and nothing else.
 
+## Using Altair PBS Professional in CycleCloud
+
+CycleCloud project for OpenPBS uses opensource version of OpenPBS. You may use your own
+[Altair PBS Professional](https://www.altair.com/pbs-professional/) licenses and installers according to your Altair PBS Professional license agreement.  
+This section documents how to use Altair PBS Professional with the CycleCloud OpenPBS project.
+
+### Prerequisites
+
+This example will use the 2022.1.1 version, which has been tested with the template.
+
+1. Users must provide Altair PBS Professional binaries (the same works with RHEL 8.x with _.el8.x86_64.rpm_)
+
+  * pbspro-client-2022.1.1.el7.x86_64.rpm
+  * pbspro-execution-2022.1.1.el7.x86_64.rpm
+  * pbspro-server-2022.1.1.el7.x86_64.rpm
+
+2. A license server reachable from Azure CycleCloud Altair PBS Professional head node and execution nodes
+
+3. (Optional to tune avilable versions) The cyclecloud cli must be configured. Documentation is available [here](https://docs.microsoft.com/en-us/azure/cyclecloud/install-cyclecloud-cli) 
+
+
+### Copy the binaries into the cloud locker
+
+To copy the installer with _azcopy_ to the Azure CycleCloud storage account, use the following commands (the same works with RHEL 8.x with _.el8.x86_64.rpm_):
+
+```bash
+
+$ azcopy cp pbspro-client-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
+$ azcopy cp pbspro-execution-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
+$ azcopy cp pbspro-server-2022.1.1.el7.x86_64.rpm https://<storage-account-name>.blob.core.windows.net/cyclecloud/blobs/pbspro
+```
+
+### Define license server
+
+In Altair PBS Professional cluster template, a specific parameter in Advanced Settings allows the definition of license server IP and port.
+
+### Adding other versions to the cluster template
+
+Make a local copy of the Altair PBS Professional template and modify it to use other versions of the installers
+instead of the default 2022.1.1.
+
+```bash
+wget https://raw.githubusercontent.com/Azure/cyclecloud-pbspro/master/templates/pbspro.txt
+```
+
+In the _pbspro.txt_ file, locate the `PBSVersion` definition and
+insert the desired version in the options. For example for version 
+
+> NOTE:
+> The version should match the one in installer file name.
+
+```ini
+        [[[parameter PBSVersion]]]
+        Label = Altair PBS Version
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="Altair PBS Pro 2021.1"; Value="2021.1.4"]}
+        DefaultValue = 2021.1.4
+
+```
+
+These configs will make the additional versions available in the UI
+
+### Import the cluster template file
+
+Using the cyclecloud cli, import a cluster template from the new cluster template file.
+
+```bash
+cyclecloud import_template -f pbspro.txt --force
+```
+
+Similar to this [tutorial](https://docs.microsoft.com/en-us/azure/cyclecloud/tutorials/modify-cluster-template) in the documentation, new Altair PBS Professional cluster is now available in the *Create Cluster* menu in the UI.
+
+Configure and create the cluster in the UI, save it, and start it.
 
 # Contributing
 
