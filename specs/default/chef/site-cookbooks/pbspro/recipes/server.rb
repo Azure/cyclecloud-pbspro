@@ -8,6 +8,8 @@ pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
 pbs_professional = node[:pbspro][:professional]
+pbsdata_uid = node[:pbspro][:pbsdata_uid]
+pbsdata_gid = node[:pbspro][:pbsdata_gid]
 
 cron_method = node[:pbspro][:cron_method] || "pbs_cron"
 package_name = node[:pbspro][:package]
@@ -47,8 +49,15 @@ jetpack_download package_name do
 end
 
 if pbs_professional
+  group 'pbsdata' do
+    gid pbsdata_gid
+    system true
+  end
+
   user 'pbsdata' do
     system true
+    uid pbsdata_uid
+    gid 'pbsdata'
     manage_home true
     home '/home/pbsdata'
     shell '/bin/bash'
