@@ -22,8 +22,8 @@ Autoscale = $Autoscale
         [[[configuration]]]
         pbspro.version = $PBSVersion
         pbspro.professional = true
-        pbspro.pbsdata_uid = 2222
-        pbspro.pbsdata_gid = 2222
+        pbspro.pbsdata_uid = 11100
+        pbspro.pbsdata_gid = 11100
         pbspro.license = $PBSLicenseServer
         # For fast spin-up after Deallocate, force an immediate re-converge on boot
         cyclecloud.converge_on_boot = true
