@@ -17,7 +17,9 @@ CYCLECLOUD_API_VERSION = "8.3.1"
 def build_sdist() -> str:
     cmd = [sys.executable, "setup.py", "sdist"]
     check_call(cmd, cwd=os.path.abspath("pbspro"))
-    sdists = glob.glob("pbspro/dist/cyclecloud-pbspro-*.tar.gz")
+    # HACK: cyclecloud_pbspro and cyclecloud-pbspro are both valid names, depending on
+    # which distools is used to build this. 
+    sdists = glob.glob("pbspro/dist/cyclecloud*pbspro-*.tar.gz")
     assert len(sdists) == 1, "Found %d sdist packages, expected 1" % len(sdists)
     path = sdists[0]
     fname = os.path.basename(path)
