@@ -3,9 +3,10 @@
 ## Cluster Configuration File ##
 ################################
 
-[cluster OpenPBS]
+[cluster Altair PBS Professional]
 FormLayout = selectionpanel
 Category = Schedulers
+IconURL="static/cloud/cluster/ui/ClusterIcon/altair-icon.png"
 
 Autoscale = $Autoscale
 
@@ -20,7 +21,10 @@ Autoscale = $Autoscale
     
         [[[configuration]]]
         pbspro.version = $PBSVersion
-        pbspro.professional = false
+        pbspro.professional = true
+        pbspro.pbsdata_uid = 11100
+        pbspro.pbsdata_gid = 11100
+        pbspro.license = $PBSLicenseServer
         # For fast spin-up after Deallocate, force an immediate re-converge on boot
         cyclecloud.converge_on_boot = true
 
@@ -83,6 +87,10 @@ Autoscale = $Autoscale
         
         [[[network-interface eth0]]]
         AssociatePublicIpAddress = $UsePublicNetwork
+
+        [[[input-endpoint ganglia]]]
+        PrivatePort = 8652
+        PublicPort = 8652
 
         [[[volume sched]]]
         Size = 1024
@@ -153,12 +161,25 @@ Autoscale = $Autoscale
 [parameters About]
 Order = 1
 
-    [[parameters About OpenPBS]]
+   [[parameters About Altair PBS Professional]]
 
         [[[parameter pbspro]]]
         HideLabel = true
         Config.Plugin = pico.widget.HtmlTemplateWidget
-        Config.Template := "<table role=\"presentation\"><tr><td><p>OpenPBS is a highly configurable open source workload manager. See the <a href=\"http://www.openpbs.org/\" target=\"_blank\">OpenPBS project site</a> for an overview.</p></td></tr></table>"
+        Config.Template = '''<table role="presentation"> <tr><td> <a> <img width="512" alt="Altair logo" src="static/cloud/cluster/ui/ClusterIcon/altair.png"> </a>  </td></tr> 
+                                <tr> <td> <p>&nbsp;</p> </td></tr> 
+                                <tr><td><big><b>Thank you for trying Altair&#0174 PBS Professional&#0174! </big> </b></td></tr> 
+                                <tr><td><p>Altair&#0174 PBS Professional&#0174 is a fast, powerful workload manager designed to improve productivity and optimize utilization 
+                                           and efficiency on-premises or in the cloud. PBS Professional automates job scheduling, management, monitoring, and reporting for an optimized HPC environment 
+                                           anywhere. Unlock the power of PBS Professional in the cloud for breakthrough results.</p>
+                                         </td></tr> 
+                                         <tr> <td> <p>&nbsp;</p> </td></tr> 
+                                         <tr><td> <p> <big><b>Additional Altair&#0174 PBS Professional&#0174 Resources: </big> </b></p></td></tr> 
+                                         <tr><td><ul>
+                                            <li><a href="https://www.altair.com/pbs-professional/">Altair PBS Professional Product Page </li>
+                                            <li><a href="https://www.altair.com/resource/hpc-cloud-applications">Altair for HPC and Cloud </li>
+                                            <li><a href="https://www.altair.com/resourcelibrary/">Altair Development and Release Activity </li></ul> </td></tr></table>'''
+
 
 [parameters Required Settings]
 Order = 10
@@ -384,10 +405,15 @@ Order = 20
         Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
 
         [[[parameter PBSVersion]]]
-        Label = PBS Version
+        Label = Altair PBS Version
         Config.Plugin = pico.form.Dropdown
-        Config.Entries := {[Label="OpenPBS v22, el8-only"; Value="22.05.11-0"], [Label="OpenPBS v20, el8-only"; Value="20.0.1-0"], [Label="PBSPro v18, el7-only"; Value="18.1.4-0"]}
-        DefaultValue = 20.0.1-0
+        Config.Entries := {[Label="Altair PBS Pro 2022.1"; Value="2022.1.1"]}
+        DefaultValue = 2022.1.1
+
+        [[[parameter PBSLicenseServer]]]
+        Label = Altair License Server location
+        Description = Altair License Server location 
+        Required = True
 
         [[[parameter serverClusterInitSpecs]]]
         Label = Server Cluster-Init
