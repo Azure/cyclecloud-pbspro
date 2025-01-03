@@ -8,5 +8,5 @@ description      "Installs/Configures Open PBS Pro"
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
 version          "2.0.24"
 depends          "tandem"
-%w{ cganglia cshared cuser cyclecloud }.each {|c| depends c}
+%w{ cshared cuser cyclecloud }.each {|c| depends c}
 
