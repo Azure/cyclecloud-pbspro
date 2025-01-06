@@ -21,7 +21,7 @@ cd cyclecloud-pbspro
 ```
 3. Run the following command to prepare [project blobs](https://learn.microsoft.com/azure/cyclecloud/how-to/storage-blobs?view=cyclecloud-8_).
 ```bash
-python package.py
+./build.sh
 ```
 4. Run the following command then copy the name of the locker you would like to upload project blobs to.
 ```bash
