@@ -59,7 +59,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
+          asset_path: blobs/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_name: cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_content_type: application/gzip
 
