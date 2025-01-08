@@ -20,3 +20,5 @@ build
 blobs/**
 dist/**
 .env
+libs/**
+venv/**
