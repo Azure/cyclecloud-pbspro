@@ -3,12 +3,11 @@ import configparser
 import glob
 import os
 import shutil
-import subprocess
 import sys
 import tarfile
 import tempfile
 from argparse import Namespace
-from subprocess import check_call
+from subprocess import check_call, run
 from typing import Dict, List, Optional
 
 SCALELIB_VERSION = "1.0.5"
@@ -59,7 +58,8 @@ def get_cycle_packages(args: Namespace) -> List[str]:
             ret.append(fname)
         else:
             dest = os.path.join("blobs" if pkg_file == cyclecloud_api_file else "libs", pkg_file)
-            check_call(["curl", "-L", "-k", "-s", "-f", "-o", dest, url])
+            check_call(["curl", "-L", "-s", "-f", "-z", dest, "-o", dest, url])
+
             ret.append(pkg_file)
             print("Downloaded", pkg_file, "to", dest)
 
@@ -81,7 +81,7 @@ def download_release_files():
     ]
 
     for url in urls:
-        subprocess.run(["curl", "-L", "-O", url], cwd="blobs", check=True)
+        run(["curl", "-L", "-C", "-", "-s", "-O", url], cwd="blobs", check=True)
 
 def execute() -> None:
     expected_cwd = os.path.abspath(os.path.dirname(__file__))
