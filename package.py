@@ -7,8 +7,9 @@ import sys
 import tarfile
 import tempfile
 from argparse import Namespace
-from subprocess import check_call, run
+from subprocess import check_call
 from typing import Dict, List, Optional
+from util import download_release_files
 
 SCALELIB_VERSION = "1.0.5"
 CYCLECLOUD_API_VERSION = "8.3.1"
@@ -64,24 +65,6 @@ def get_cycle_packages(args: Namespace) -> List[str]:
             print("Downloaded", pkg_file, "to", dest)
 
     return ret
-
-def download_release_files():
-    urls = [
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/hwloc-libs-1.11.9-3.el8.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-client-20.0.1-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-client-22.05.11-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-execution-20.0.1-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-execution-22.05.11-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-server-20.0.1-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/openpbs-server-22.05.11-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/pbspro-client-18.1.4-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/pbspro-debuginfo-18.1.4-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/pbspro-execution-18.1.4-0.x86_64.rpm',
-        'https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/pbspro-server-18.1.4-0.x86_64.rpm'
-    ]
-
-    for url in urls:
-        run(["curl", "-L", "-C", "-", "-s", "-O", url], cwd="blobs", check=True)
 
 def execute() -> None:
     expected_cwd = os.path.abspath(os.path.dirname(__file__))

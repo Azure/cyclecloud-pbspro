@@ -11,4 +11,5 @@ else
     source venv/bin/activate
 fi
 
-python package.py
+python package.py 
+python generate_release_yaml.py > .github/workflows/release.yml

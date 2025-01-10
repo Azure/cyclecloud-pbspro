@@ -1,12 +1,6 @@
 from subprocess import check_output
-from configparser import ConfigParser
 import os
-
-RELEASE_URL = (
-    "https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/"
-)
-RELEASE_URL = RELEASE_URL.rstrip("/") + "/"
-
+from util import get_blobs
 
 BASE_TEMPLATE = """# Based on example from https://github.com/actions/upload-release-asset
 on:
@@ -34,11 +28,6 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-      - name: Get PBS binaries
-        id: get-pbs-binaries
-        run:
-          mkdir rpms/;
-          %(get_pbs_binaries)s
       
       - name: Create Release
         id: create_release
@@ -66,8 +55,6 @@ jobs:
       %(upload_steps)s
 """
 
-DOWNLOAD_LINE = f"curl -L -k -o rpms/%(fname)s {RELEASE_URL}/%(fname)s;"
-
 UPLOAD_TEMPLATE = """
       - name: Upload %(fname)s;
         id: upload-%(index)s
@@ -76,22 +63,15 @@ UPLOAD_TEMPLATE = """
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/%(fname)s
+          asset_path: blobs/%(fname)s
           asset_name: %(fname)s;
           asset_content_type: application/octet-stream"""
 cwd = os.path.abspath(os.path.dirname(__file__))
 os.chdir(cwd)
 
-parser = ConfigParser()
-parser.read("project.ini")
-blobs = [x.strip() for x in parser.get("blobs", "Files").split(",")]
-
-get_pbs_binaries = []
+blobs = get_blobs()
 upload_steps = []
 for n, fname in enumerate(blobs):
-    if "cyclecloud" in fname and "-pkg" in fname:
-        continue
-    get_pbs_binaries.append(DOWNLOAD_LINE % {"fname": fname})
     upload_steps.append(UPLOAD_TEMPLATE % {"fname": fname, "index": n})
 
-print(BASE_TEMPLATE % {"get_pbs_binaries": "\n          ".join(get_pbs_binaries), "upload_steps": "\n".join(upload_steps)})
+print(BASE_TEMPLATE % {"upload_steps": "\n".join(upload_steps)})
