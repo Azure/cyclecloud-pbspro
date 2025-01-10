@@ -12,4 +12,8 @@ else
 fi
 
 python package.py 
-python generate_release_yaml.py > .github/workflows/release.yml
+
+if [[ -z "$GITHUB_REF" ]]; then
+    echo "Generating release.yml..."
+    python generate_release_yaml.py > .github/workflows/release.yml
+fi
