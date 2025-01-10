@@ -24,22 +24,6 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-      - name: Get PBS binaries
-        id: get-pbs-binaries
-        run:
-          mkdir rpms/;
-          curl -L -k -o rpms/cyclecloud_api-8.3.1-py2.py3-none-any.whl https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//cyclecloud_api-8.3.1-py2.py3-none-any.whl;
-          curl -L -k -o rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//hwloc-libs-1.11.9-3.el8.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-client-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-client-20.0.1-0.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-client-22.05.11-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-client-22.05.11-0.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-execution-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-execution-20.0.1-0.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-execution-22.05.11-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-execution-22.05.11-0.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-server-20.0.1-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-server-20.0.1-0.x86_64.rpm;
-          curl -L -k -o rpms/openpbs-server-22.05.11-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//openpbs-server-22.05.11-0.x86_64.rpm;
-          curl -L -k -o rpms/pbspro-client-18.1.4-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//pbspro-client-18.1.4-0.x86_64.rpm;
-          curl -L -k -o rpms/pbspro-debuginfo-18.1.4-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//pbspro-debuginfo-18.1.4-0.x86_64.rpm;
-          curl -L -k -o rpms/pbspro-execution-18.1.4-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//pbspro-execution-18.1.4-0.x86_64.rpm;
-          curl -L -k -o rpms/pbspro-server-18.1.4-0.x86_64.rpm https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins//pbspro-server-18.1.4-0.x86_64.rpm;
       
       - name: Create Release
         id: create_release
@@ -60,140 +44,140 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
+          asset_path: blobs/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_name: cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.version }}.tar.gz
           asset_content_type: application/gzip
 
       
       - name: Upload cyclecloud_api-8.3.1-py2.py3-none-any.whl;
+        id: upload-0
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: blobs/cyclecloud_api-8.3.1-py2.py3-none-any.whl
+          asset_name: cyclecloud_api-8.3.1-py2.py3-none-any.whl;
+          asset_content_type: application/octet-stream
+
+      - name: Upload hwloc-libs-1.11.9-3.el8.x86_64.rpm;
         id: upload-1
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/cyclecloud_api-8.3.1-py2.py3-none-any.whl
-          asset_name: cyclecloud_api-8.3.1-py2.py3-none-any.whl;
+          asset_path: blobs/hwloc-libs-1.11.9-3.el8.x86_64.rpm
+          asset_name: hwloc-libs-1.11.9-3.el8.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload hwloc-libs-1.11.9-3.el8.x86_64.rpm;
+      - name: Upload openpbs-client-20.0.1-0.x86_64.rpm;
         id: upload-2
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/hwloc-libs-1.11.9-3.el8.x86_64.rpm
-          asset_name: hwloc-libs-1.11.9-3.el8.x86_64.rpm;
+          asset_path: blobs/openpbs-client-20.0.1-0.x86_64.rpm
+          asset_name: openpbs-client-20.0.1-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-client-20.0.1-0.x86_64.rpm;
+      - name: Upload openpbs-client-22.05.11-0.x86_64.rpm;
         id: upload-3
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-client-20.0.1-0.x86_64.rpm
-          asset_name: openpbs-client-20.0.1-0.x86_64.rpm;
+          asset_path: blobs/openpbs-client-22.05.11-0.x86_64.rpm
+          asset_name: openpbs-client-22.05.11-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-client-22.05.11-0.x86_64.rpm;
+      - name: Upload openpbs-execution-20.0.1-0.x86_64.rpm;
         id: upload-4
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-client-22.05.11-0.x86_64.rpm
-          asset_name: openpbs-client-22.05.11-0.x86_64.rpm;
+          asset_path: blobs/openpbs-execution-20.0.1-0.x86_64.rpm
+          asset_name: openpbs-execution-20.0.1-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-execution-20.0.1-0.x86_64.rpm;
+      - name: Upload openpbs-execution-22.05.11-0.x86_64.rpm;
         id: upload-5
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-execution-20.0.1-0.x86_64.rpm
-          asset_name: openpbs-execution-20.0.1-0.x86_64.rpm;
+          asset_path: blobs/openpbs-execution-22.05.11-0.x86_64.rpm
+          asset_name: openpbs-execution-22.05.11-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-execution-22.05.11-0.x86_64.rpm;
+      - name: Upload openpbs-server-20.0.1-0.x86_64.rpm;
         id: upload-6
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-execution-22.05.11-0.x86_64.rpm
-          asset_name: openpbs-execution-22.05.11-0.x86_64.rpm;
+          asset_path: blobs/openpbs-server-20.0.1-0.x86_64.rpm
+          asset_name: openpbs-server-20.0.1-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-server-20.0.1-0.x86_64.rpm;
+      - name: Upload openpbs-server-22.05.11-0.x86_64.rpm;
         id: upload-7
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-server-20.0.1-0.x86_64.rpm
-          asset_name: openpbs-server-20.0.1-0.x86_64.rpm;
+          asset_path: blobs/openpbs-server-22.05.11-0.x86_64.rpm
+          asset_name: openpbs-server-22.05.11-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload openpbs-server-22.05.11-0.x86_64.rpm;
+      - name: Upload pbspro-client-18.1.4-0.x86_64.rpm;
         id: upload-8
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/openpbs-server-22.05.11-0.x86_64.rpm
-          asset_name: openpbs-server-22.05.11-0.x86_64.rpm;
+          asset_path: blobs/pbspro-client-18.1.4-0.x86_64.rpm
+          asset_name: pbspro-client-18.1.4-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload pbspro-client-18.1.4-0.x86_64.rpm;
+      - name: Upload pbspro-debuginfo-18.1.4-0.x86_64.rpm;
         id: upload-9
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/pbspro-client-18.1.4-0.x86_64.rpm
-          asset_name: pbspro-client-18.1.4-0.x86_64.rpm;
+          asset_path: blobs/pbspro-debuginfo-18.1.4-0.x86_64.rpm
+          asset_name: pbspro-debuginfo-18.1.4-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload pbspro-debuginfo-18.1.4-0.x86_64.rpm;
+      - name: Upload pbspro-execution-18.1.4-0.x86_64.rpm;
         id: upload-10
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/pbspro-debuginfo-18.1.4-0.x86_64.rpm
-          asset_name: pbspro-debuginfo-18.1.4-0.x86_64.rpm;
+          asset_path: blobs/pbspro-execution-18.1.4-0.x86_64.rpm
+          asset_name: pbspro-execution-18.1.4-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
-      - name: Upload pbspro-execution-18.1.4-0.x86_64.rpm;
+      - name: Upload pbspro-server-18.1.4-0.x86_64.rpm;
         id: upload-11
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/pbspro-execution-18.1.4-0.x86_64.rpm
-          asset_name: pbspro-execution-18.1.4-0.x86_64.rpm;
-          asset_content_type: application/octet-stream
-
-      - name: Upload pbspro-server-18.1.4-0.x86_64.rpm;
-        id: upload-12
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACTION_PAT }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpms/pbspro-server-18.1.4-0.x86_64.rpm
+          asset_path: blobs/pbspro-server-18.1.4-0.x86_64.rpm
           asset_name: pbspro-server-18.1.4-0.x86_64.rpm;
           asset_content_type: application/octet-stream
 
