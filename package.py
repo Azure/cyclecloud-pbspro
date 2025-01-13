@@ -9,6 +9,7 @@ import tempfile
 from argparse import Namespace
 from subprocess import check_call
 from typing import Dict, List, Optional
+from util import download_release_files
 
 SCALELIB_VERSION = "1.0.5"
 CYCLECLOUD_API_VERSION = "8.3.1"
@@ -30,7 +31,7 @@ def build_sdist() -> str:
     return fname
 
 
-def get_cycle_libs(args: Namespace) -> List[str]:
+def get_cycle_packages(args: Namespace) -> List[str]:
     ret = [build_sdist()]
 
     scalelib_file = "cyclecloud-scalelib-{}.tar.gz".format(SCALELIB_VERSION)
@@ -44,26 +45,26 @@ def get_cycle_libs(args: Namespace) -> List[str]:
         cyclecloud_api_file: (args.cyclecloud_api, cyclecloud_api_url),
     }
 
-    for lib_file in to_download:
-        arg_override, url = to_download[lib_file]
+    for pkg_file in to_download:
+        arg_override, url = to_download[pkg_file]
         if arg_override:
             if not os.path.exists(arg_override):
                 print(arg_override, "does not exist", file=sys.stderr)
                 sys.exit(1)
             fname = os.path.basename(arg_override)
             orig = os.path.abspath(arg_override)
-            dest = os.path.abspath(os.path.join("libs", fname))
+            dest = os.path.abspath(os.path.join("blobs" if pkg_file == cyclecloud_api_file else "libs", fname))
             if orig != dest:
                 shutil.copyfile(orig, dest)
             ret.append(fname)
         else:
-            dest = os.path.join("libs", lib_file)
-            check_call(["curl", "-L", "-k", "-s", "-f", "-o", dest, url])
-            ret.append(lib_file)
-            print("Downloaded", lib_file, "to")
+            dest = os.path.join("blobs" if pkg_file == cyclecloud_api_file else "libs", pkg_file)
+            check_call(["curl", "-L", "-s", "-f", "-z", dest, "-o", dest, url])
+
+            ret.append(pkg_file)
+            print("Downloaded", pkg_file, "to", dest)
 
     return ret
-
 
 def execute() -> None:
     expected_cwd = os.path.abspath(os.path.dirname(__file__))
@@ -71,6 +72,9 @@ def execute() -> None:
 
     if not os.path.exists("libs"):
         os.makedirs("libs")
+    
+    if not os.path.exists("blobs"):
+        os.makedirs("blobs")
 
     argument_parser = argparse.ArgumentParser(
         "Builds CycleCloud GridEngine project with all dependencies.\n"
@@ -80,7 +84,7 @@ def execute() -> None:
     argument_parser.add_argument("--cyclecloud-api", default=None)
     args = argument_parser.parse_args()
 
-    cycle_libs = get_cycle_libs(args)
+    cycle_packages = get_cycle_packages(args)
 
     parser = configparser.ConfigParser()
     ini_path = os.path.abspath("project.ini")
@@ -92,11 +96,8 @@ def execute() -> None:
     if not version:
         raise RuntimeError("Missing [project] -> version in {}".format(ini_path))
 
-    if not os.path.exists("dist"):
-        os.makedirs("dist")
-
     tf = tarfile.TarFile.gzopen(
-        "dist/cyclecloud-pbspro-pkg-{}.tar.gz".format(version), "w"
+        "blobs/cyclecloud-pbspro-pkg-{}.tar.gz".format(version), "w"
     )
 
     build_dir = tempfile.mkdtemp("cyclecloud-pbspro")
@@ -113,8 +114,8 @@ def execute() -> None:
             tf.addfile(tarinfo, fr)
 
     packages = []
-    for dep in cycle_libs:
-        dep_path = os.path.abspath(os.path.join("libs", dep))
+    for dep in cycle_packages:
+        dep_path = os.path.abspath(os.path.join("blobs" if "cyclecloud_api" in dep else "libs", dep))
         _add("packages/" + dep, dep_path)
         packages.append(dep_path)
 
@@ -156,6 +157,9 @@ def execute() -> None:
     _add("server_dyn_res_wrapper.sh", mode=os.stat("server_dyn_res_wrapper.sh")[0])
     _add("autoscale_hook.py", "pbspro/conf/autoscale_hook.py")
     _add("logging.conf", "pbspro/conf/logging.conf")
+
+    print("Downloading release files...")
+    download_release_files()
 
 
 if __name__ == "__main__":
