@@ -31,7 +31,7 @@ Replace `LOCKER_NAME` with the name of your locker.
 cp templates/openpbs.txt templates/openpbs-test.txt
 sed -i -e 's/\(\[*cluster-init[^]]*\)\]/\1:RELEASE_VERSION]/' -e 's/cyclecloud\/pbspro/pbspro/g' templates/openpbs-test.txt
 ``` 
-Replace `RELEASE_VERSION` with the cyclecloud-pbspro release version (ex: `2.0.25`)
+Replace `RELEASE_VERSION` with the cyclecloud-pbspro release version (ex: `2.0.24`)
  
 2.  Import the template by running the following command.
 ```bash
