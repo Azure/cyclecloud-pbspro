@@ -3,7 +3,7 @@
 #
 # 
 
-default[:pbspro][:autoscale_version] = "2.0.24"
+default[:pbspro][:autoscale_version] = "2.0.25"
 default[:pbspro][:autoscale_installer] = "cyclecloud-pbspro-pkg-#{node[:pbspro][:autoscale_version]}.tar.gz"
 default[:pbspro][:cron_method] = "pbs_cron"
 default[:pbspro][:version] = "20.0.1-0"
