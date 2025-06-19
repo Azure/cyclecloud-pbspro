@@ -83,14 +83,14 @@ class TestSubmit(unittest.TestCase):
         
         jobs = json.loads(check_output(['qstat', '-f', '-F', 'json']))
         jobs_by_name = {}
-        for job_id, job in jobs.get("Jobs", {}).items():
+        for job_id, job in list(jobs.get("Jobs", {}).items()):
             job["Job_Id"] = job_id 
             jobs_by_name[job["Job_Name"]] = job
         
         def check_job(job_uuid, select, place, slot_type="execute"):
-            self.assertEquals(select, jobs_by_name[job_uuid]["Resource_List"]["select"])
-            self.assertEquals(place, jobs_by_name[job_uuid]["Resource_List"]["place"])
-            self.assertEquals(slot_type, jobs_by_name[job_uuid]["Resource_List"]["slot_type"])
+            self.assertEqual(select, jobs_by_name[job_uuid]["Resource_List"]["select"])
+            self.assertEqual(place, jobs_by_name[job_uuid]["Resource_List"]["place"])
+            self.assertEqual(slot_type, jobs_by_name[job_uuid]["Resource_List"]["slot_type"])
             
         check_job(simple, "1:ncpus=1:slot_type=execute:ungrouped=false", "pack:group=group_id")
         check_job(simple_htcq, "1:ncpus=1:slot_type=execute:ungrouped=true", "pack")
@@ -109,7 +109,7 @@ class TestSubmit(unittest.TestCase):
                 try:
                     # continually collect host information. Some may get shutdown while we are waiting for other jobs to complete.
                     nodes = json.loads(check_output(["pbsnodes", "-a", "-F", "json"]))
-                    for hostname, node in nodes["nodes"].items():
+                    for hostname, node in list(nodes["nodes"].items()):
                         hosts[hostname.lower()] = node
                 except CalledProcessError:
                     # pbsnodes exits with 1 if there are no nodes, just ignore.
@@ -138,11 +138,11 @@ class TestSubmit(unittest.TestCase):
         
         def check_hosts(job_uuid, expected_procs, expected_hosts, placed):
             self.assertIn(job_uuid, result, "Job %s did not complete" % job_uuid)
-            self.assertEquals(expected_procs, len(result[job_uuid]))
+            self.assertEqual(expected_procs, len(result[job_uuid]))
             
             # for some types of jobs, there is no guarantee on how many hosts they will land on.
             if expected_hosts > 0:
-                self.assertEquals(expected_hosts, len(set(result[job_uuid])))
+                self.assertEqual(expected_hosts, len(set(result[job_uuid])))
                 
             for hostname in result[job_uuid]:
                 hostname = hostname.lower()
