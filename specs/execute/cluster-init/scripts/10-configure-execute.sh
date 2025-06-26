@@ -8,13 +8,10 @@ source /mnt/cluster-init/pbspro/default/files/default.sh
 echo "Configuring PBS Pro execution node..."
 
 PACKAGE_NAME=$(jetpack config pbspro.package || echo "nil")
-# PBSPRO_VERSION="20.0.1-0" # TODO: use default var instead
 HOSTNAME=$(jetpack config hostname)
 
 # Note: this requires adding pbspro.scheduler = <whatever_scheduler_hostnameis> to the execute node's config for now
-if ! SERVER_HOSTNAME=$(jetpack config pbspro.scheduler); then
-    SERVER_HOSTNAME=$(jetpack config cyclecloud.instance.hostname)
-fi
+SERVER_HOSTNAME=$(jetpack config pbspro.scheduler)
 
 if [[ "$PACKAGE_NAME" == "nil" ]]; then
     if [[ "${PBSPRO_VERSION%%.*}" < 20 ]]; then
@@ -35,21 +32,17 @@ if [ "$SERVER_HOSTNAME" != "nil" ]; then
 
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
     chmod 0644 /var/spool/pbs/server_name
-    chown root:root /var/spool/pbs/server_name
 
     echo '$usecp *:/shared /shared' > /var/spool/pbs/mom_priv/config
     chmod 0644 /var/spool/pbs/mom_priv/config
-    chown root:root /var/spool/pbs/mom_priv/config
 
     sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \
         /mnt/cluster-init/pbspro/default/templates/default/pbs.conf.template > /etc/pbs.conf
     chmod 0644 /etc/pbs.conf
-    chown root:root /etc/pbs.conf
 fi
 
 cp /mnt/cluster-init/pbspro/default/files/modify_limits.sh /var/spool/pbs/modify_limits.sh
 chmod 0755 /var/spool/pbs/modify_limits.sh
-chown root:root /var/spool/pbs/modify_limits.sh
 
 NODE_CREATED_GUARD="$(jetpack config cyclecloud.chefstate)/pbs.nodecreated"
 
