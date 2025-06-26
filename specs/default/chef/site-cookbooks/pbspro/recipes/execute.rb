@@ -4,110 +4,111 @@
 include_recipe 'pbspro::_updatehostname'
 include_recipe 'pbspro::default'
 
-pbsprover = node[:pbspro][:version]
+# pbsprover = node[:pbspro][:version]
 
-plat_ver = node['platform_version'].to_i
-platform = node['platform_family']
-pbsdist = "el#{plat_ver}"
-package_name = node[:pbspro][:package]
+# plat_ver = node['platform_version'].to_i
+# platform = node['platform_family']
+# pbsdist = "el#{plat_ver}"
+# package_name = node[:pbspro][:package]
 
-if package_name == nil
-  if pbsprover.to_i < 20 
-    package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
-  else
-    package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
-  end
-end
+# if package_name == nil
+#   if pbsprover.to_i < 20 
+#     package_name = "pbspro-execution-#{pbsprover}.x86_64.rpm"
+#   else
+#     package_name = "openpbs-execution-#{pbsprover}.x86_64.rpm"
+#   end
+# end
 
-jetpack_download package_name do
-  project 'pbspro'
-end
+# jetpack_download package_name do
+#   project 'pbspro'
+# end
 
-package package_name do
-  source "#{node['jetpack']['downloads']}/#{package_name}"
-  action :install
-end
+# package package_name do
+#   source "#{node['jetpack']['downloads']}/#{package_name}"
+#   action :install
+# end
 
-nodearray = node[:cyclecloud][:node][:template] || "execute"
-slot_type = node[:pbspro][:slot_type] || nodearray
-machinetype = node[:azure][:metadata][:compute][:vmSize]
+# nodearray = node[:cyclecloud][:node][:template] || "execute"
+# slot_type = node[:pbspro][:slot_type] || nodearray
+# machinetype = node[:azure][:metadata][:compute][:vmSize]
 
-placement_group = node[:cyclecloud][:node][:placement_group_id] || node[:cyclecloud][:node][:placement_group] || nil
-is_node_grouped = node[:pbspro][:is_hpc] || !placement_group.nil?
-instance_id = node[:cyclecloud][:instance][:id]
+# placement_group = node[:cyclecloud][:node][:placement_group_id] || node[:cyclecloud][:node][:placement_group] || nil
+# is_node_grouped = node[:pbspro][:is_hpc] || !placement_group.nil?
+# instance_id = node[:cyclecloud][:instance][:id]
 
-custom_resources = Hash.new {}
-if node[:autoscale] then
-    custom_resources = node[:autoscale].to_h
-end
+# custom_resources = Hash.new {}
+# if node[:autoscale] then
+#     custom_resources = node[:autoscale].to_h
+# end
 
 schedint = (node[:pbspro][:scheduler] || cluster.scheduler).split(".").first
-slots = node[:pbspro][:slots] || nil
+Chef::Log.info("Using scheduler: #{schedint}")
+Chef::Log.info("This is what scheduler contains: cluster.scheduler = #{cluster.scheduler}")
+# slots = node[:pbspro][:slots] || nil
 
-if schedint != nil
-  template "/var/spool/pbs/server_name" do
-    source "server_name_exec.erb"
-    mode "0644"
-    owner "root"
-    group "root"
-    variables(:servername => schedint)
-  end
+# if schedint != nil
+#   template "/var/spool/pbs/server_name" do
+#     source "server_name_exec.erb"
+#     mode "0644"
+#     owner "root"
+#     group "root"
+#     variables(:servername => schedint)
+#   end
 
-  template "/var/spool/pbs/mom_priv/config" do
-    source "mom_config.erb"
-    mode "0644"
-    owner "root"
-    group "root"
-    variables(:servername => schedint)
-  end
+#   template "/var/spool/pbs/mom_priv/config" do
+#     source "mom_config.erb"
+#     mode "0644"
+#     owner "root"
+#     group "root"
+#     variables(:servername => schedint)
+#   end
 
-  template "/etc/pbs.conf" do
-    source "pbs.conf.erb"
-    mode "0644"
-    owner "root"
-    group "root"
-    variables(:servername => schedint)
-  end
-end
+#   template "/etc/pbs.conf" do
+#     source "pbs.conf.erb"
+#     mode "0644"
+#     owner "root"
+#     group "root"
+#     variables(:servername => schedint)
+#   end
+# end
 
+# cookbook_file "/var/spool/pbs/modify_limits.sh" do
+#   source "modify_limits.sh"
+#   mode "0755"
+#   owner "root"
+#   group "root"
+#   action :create
+# end
 
-cookbook_file "/var/spool/pbs/modify_limits.sh" do
-  source "modify_limits.sh"
-  mode "0755"
-  owner "root"
-  group "root"
-  action :create
-end
+# node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
 
-node_created_guard = "#{node['cyclecloud']['chefstate']}/pbs.nodecreated"
+# bash "await-joining-cluster" do
+#   code lazy { <<-EOF 
+#     node_attrs=$(/opt/pbs/bin/pbsnodes #{node[:hostname]})
+#     if [ $? != 0 ]; then
+#         echo "#{node[:hostname]} is not in the cluster yet. Retrying next converge" 1>&2
+#         exit 1
+#     fi
 
-bash "await-joining-cluster" do
-  code lazy { <<-EOF 
-    node_attrs=$(/opt/pbs/bin/pbsnodes #{node[:hostname]})
-    if [ $? != 0 ]; then
-        echo "#{node[:hostname]} is not in the cluster yet. Retrying next converge" 1>&2
-        exit 1
-    fi
+#     echo $node_attrs | grep -qi #{node[:cyclecloud][:node][:id]}
+#     if [ $? != 0 ]; then
+#       echo "Stale entry found for #{node[:hostname]}. Waiting for autoscaler to update this before joining." 1>&2
+#       exit 1
+#     fi
 
-    echo $node_attrs | grep -qi #{node[:cyclecloud][:node][:id]}
-    if [ $? != 0 ]; then
-      echo "Stale entry found for #{node[:hostname]}. Waiting for autoscaler to update this before joining." 1>&2
-      exit 1
-    fi
+#     /opt/pbs/bin/pbsnodes -o #{node[:hostname]} -C 'cyclecloud offline' && touch #{node_created_guard}}
+#     EOF
+#     }
+#   not_if {::File.exist?(node_created_guard)}
+#   action :nothing
+# end
 
-    /opt/pbs/bin/pbsnodes -o #{node[:hostname]} -C 'cyclecloud offline' && touch #{node_created_guard}}
-    EOF
-    }
-  not_if {::File.exist?(node_created_guard)}
-  action :nothing
-end
-
-execute "await-node-definition" do
-  command "/opt/pbs/bin/pbsnodes #{node[:hostname]} || (echo '#{node[:hostname]} is not in the cluster yet. Retrying next converge' 1>&2; exit 1)"
-  retries 10
-  retry_delay 15
-  notifies :run, "bash[await-joining-cluster]", :immediately
-end
+# execute "await-node-definition" do
+#   command "/opt/pbs/bin/pbsnodes #{node[:hostname]} || (echo '#{node[:hostname]} is not in the cluster yet. Retrying next converge' 1>&2; exit 1)"
+#   retries 10
+#   retry_delay 15
+#   notifies :run, "bash[await-joining-cluster]", :immediately
+# end
 
 defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do
 
