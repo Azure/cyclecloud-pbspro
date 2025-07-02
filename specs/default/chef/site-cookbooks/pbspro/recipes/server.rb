@@ -6,7 +6,7 @@ include_recipe 'pbspro::default'
 
 pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
-pbsdist = "el#{plat_ver}"
+# pbsdist = "el#{plat_ver}"
 cron_method = node[:pbspro][:cron_method] || "pbs_cron"
 package_name = node[:pbspro][:package]
 

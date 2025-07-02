@@ -4,40 +4,40 @@
 
 include_recipe 'pbspro::default'
 
-pbsprover = node[:pbspro][:version]
-plat_ver = node['platform_version'].to_i
-pbsdist = "el#{plat_ver}"
-package_name = node[:pbspro][:package]
+# pbsprover = node[:pbspro][:version]
+# plat_ver = node['platform_version'].to_i
+# pbsdist = "el#{plat_ver}"
+# package_name = node[:pbspro][:package]
 
-if package_name.nil?
-  if pbsprover.to_i < 20 
-    package_name = "pbspro-client-#{pbsprover}.x86_64.rpm"
-  else
-    package_name = "openpbs-client-#{pbsprover}.x86_64.rpm"
-  end
-end
+# if package_name.nil?
+#   if pbsprover.to_i < 20 
+#     package_name = "pbspro-client-#{pbsprover}.x86_64.rpm"
+#   else
+#     package_name = "openpbs-client-#{pbsprover}.x86_64.rpm"
+#   end
+# end
 
-jetpack_download package_name do
-  project 'pbspro'
-end
+# jetpack_download package_name do
+#   project 'pbspro'
+# end
 
-package package_name do
-  source "#{node['jetpack']['downloads']}/#{package_name}"
-  action :install
-end
+# package package_name do
+#   source "#{node['jetpack']['downloads']}/#{package_name}"
+#   action :install
+# end
 
-schedint = cluster.scheduler
+# schedint = cluster.scheduler
 
-if schedint != nil
-  template "/etc/pbs.conf" do
-    source "pbs.conf.erb"
-    mode "0644"
-    owner "root"
-    group "root"
-    variables(:servername => schedint)
-  end
-end
+# if schedint != nil
+#   template "/etc/pbs.conf" do
+#     source "pbs.conf.erb"
+#     mode "0644"
+#     owner "root"
+#     group "root"
+#     variables(:servername => schedint)
+#   end
+# end
 
-execute 'set_flatuid' do
-  command '/opt/pbs/bin/qmgr -c "set server flatuid=true"'
-end
+# execute 'set_flatuid' do
+#   command '/opt/pbs/bin/qmgr -c "set server flatuid=true"'
+# end

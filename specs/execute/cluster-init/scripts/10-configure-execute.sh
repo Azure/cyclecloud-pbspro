@@ -1,106 +1,84 @@
 #!/bin/bash
 
-set -e
-set -x
+source $CYCLECLOUD_PROJECT_PATH/default/files/default.sh || exit 1
 
-source /mnt/cluster-init/pbspro/default/files/default.sh
+PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
+EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
+DOWNLOADS_DIRECTORY=$(jetpack config jetpack.downloads) || fail
+SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail # Note: this requires adding pbspro.scheduler = <whatever_scheduler_hostnameis> to the execute node's config for now
 
 echo "Configuring PBS Pro execution node..."
 
-PACKAGE_NAME=$(jetpack config pbspro.package || echo "nil")
-HOSTNAME=$(jetpack config hostname)
-
-# Note: this requires adding pbspro.scheduler = <whatever_scheduler_hostnameis> to the execute node's config for now
-SERVER_HOSTNAME=$(jetpack config pbspro.scheduler)
-
-if [[ "$PACKAGE_NAME" == "nil" ]]; then
-    if [[ "${PBSPRO_VERSION%%.*}" < 20 ]]; then
+if [[ -z "$PACKAGE_NAME" ]]; then
+    if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
         PACKAGE_NAME="pbspro-execution-${PBSPRO_VERSION}.x86_64.rpm"
     else
-        echo "openpbs version -- ${PBSPRO_VERSION%%.*}"
         PACKAGE_NAME="openpbs-execution-${PBSPRO_VERSION}.x86_64.rpm"
     fi
 fi
 
-jetpack download --project pbspro "$PACKAGE_NAME" "$(jetpack config jetpack.downloads)"
+jetpack download --project pbspro "$PACKAGE_NAME" "$DOWNLOADS_DIRECTORY" || fail
 
-# TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
-sudo yum install -y "$(jetpack config jetpack.downloads)/$PACKAGE_NAME"
+yum install -y "$DOWNLOADS_DIRECTORY/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
 
-if [ "$SERVER_HOSTNAME" != "nil" ]; then
-    echo "SERVER_HOSTNAME is $SERVER_HOSTNAME"
-
+if [[ -n "$SERVER_HOSTNAME" ]]; then
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
-    chmod 0644 /var/spool/pbs/server_name
+    chmod 0644 /var/spool/pbs/server_name || fail
 
-    echo '$usecp *:/shared /shared' > /var/spool/pbs/mom_priv/config
-    chmod 0644 /var/spool/pbs/mom_priv/config
+    cp $CYCLECLOUD_PROJECT_PATH/default/templates/default/mom_config.template /var/spool/pbs/mom_priv/config || fail
+    chmod 0644 /var/spool/pbs/mom_priv/config || fail
 
     sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \
-        /mnt/cluster-init/pbspro/default/templates/default/pbs.conf.template > /etc/pbs.conf
-    chmod 0644 /etc/pbs.conf
+        $CYCLECLOUD_PROJECT_PATH/default/templates/default/pbs.conf.template > /etc/pbs.conf || fail
+    chmod 0644 /etc/pbs.conf || fail
 fi
 
-cp /mnt/cluster-init/pbspro/default/files/modify_limits.sh /var/spool/pbs/modify_limits.sh
-chmod 0755 /var/spool/pbs/modify_limits.sh
-
-NODE_CREATED_GUARD="$(jetpack config cyclecloud.chefstate)/pbs.nodecreated"
-
-retry_command() {
-    local max_retries=10
-    local retry_delay=15
-    local attempt=1
-    
-    while (( attempt <= max_retries )); do
-        echo Attempting $attempt
-        if "$@"; then
-            return 0
-        fi
-
-        if ((attempt == max_retries)); then
-        echo "Command failed after $max_retries attempts. Exiting."
-            return 1
-        fi
-
-        echo "Command failed, retrying..."
-        sleep $retry_delay
-        ((attempt+=1))
-    done
-
-    return 1
-}
+cp $CYCLECLOUD_PROJECT_PATH/default/templates/default/modify_limits.sh /var/spool/pbs/modify_limits.sh || fail
+chmod 0755 /var/spool/pbs/modify_limits.sh || fail
 
 await_node_definition() {
-    /opt/pbs/bin/pbsnodes $HOSTNAME || {
-        echo "$HOSTNAME is not in the cluster yet. Retrying next converge" 1>&2
-        return 1
-    }
-}
-
-await_joining_cluster() {
-    if [ -f $NODE_CREATED_GUARD ]; then
-        echo "Node has already been created, skipping joining checks"
+    if /opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME; then
         return 0
+    else
+        echo "$EXECUTE_HOSTNAME is not in the cluster yet. Retrying next converge" 1>&2
+        return 1
     fi
-    
-    NODE_ATTRS=$(/opt/pbs/bin/pbsnodes $HOSTNAME)
-    if [ $? != 0 ]; then
-        echo "$HOSTNAME is not in the cluster yet. Retrying next converge" 1>&2
-        exit 1
-    fi
-
-    echo $NODE_ATTRS | grep -qi "$(jetpack config cyclecloud.node.id)"
-    if [ $? != 0 ]; then
-        echo "Stale entry found for $HOSTNAME. Waiting for autoscaler to update this before joining." 1>&2
-        exit 1
-    fi
-
-    /opt/pbs/bin/pbsnodes -o $HOSTNAME -C 'cyclecloud offline' && touch $NODE_CREATED_GUARD
 }
 
-if retry_command await_node_definition; then
-    echo "are we about to call await joining cluster?"
-    await_joining_cluster
-else 
+MAX_RETRIES=10
+RETRY_DELAY=15
+ATTEMPT=1
+if ! await_node_definition; then
+    while [[ $ATTEMPT -lt $MAX_RETRIES ]]; do
+        sleep $RETRY_DELAY
+        ((ATTEMPT+=1))
+        
+        if await_node_definition; then
+            break;
+        fi
+    done
+
+    if [[ $ATTEMPT == $MAX_RETRIES ]]; then
+        echo "Command failed after $MAX_RETRIES attempts. Exiting."
+        exit 1
+    fi
+fi
+
+#This block will execute only if the "execute" node is defined in the PBS server
+echo "Node is defined in PBS server, proceeding with cluster joining..."
+
+NODE_CREATED_GUARD="$(jetpack config cyclecloud.home)/pbs.nodecreated" || fail
+if [[ -f $NODE_CREATED_GUARD ]]; then
+    echo "Node has already been created, skipping joining checks"
+    exit 0
+fi
+
+NODE_ATTRS=$(/opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME)
+echo $NODE_ATTRS | grep -qi "$(jetpack config cyclecloud.node.id)" || fail
+
+if [[ $? -ne 0 ]]; then
+    echo "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining." 1>&2
     exit 1
 fi
+
+/opt/pbs/bin/pbsnodes -o $EXECUTE_HOSTNAME -C 'cyclecloud offline' && touch $NODE_CREATED_GUARD || fail
