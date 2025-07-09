@@ -1,13 +1,12 @@
 #!/bin/bash
 
 source $CYCLECLOUD_PROJECT_PATH/default/files/default.sh || exit 1
+source $CYCLECLOUD_PROJECT_PATH/default/files/utils.sh || exit 1
+source $CYCLECLOUD_PROJECT_PATH/default/files/hwlocs-install.sh || exit 1
 
 PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
-DOWNLOADS_DIRECTORY=$(jetpack config jetpack.downloads) || fail
 SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail # Note: this requires adding pbspro.scheduler = <whatever_scheduler_hostnameis> to the execute node's config for now
-
-echo "Configuring PBS Pro execution node..."
 
 if [[ -z "$PACKAGE_NAME" ]]; then
     if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
@@ -17,9 +16,8 @@ if [[ -z "$PACKAGE_NAME" ]]; then
     fi
 fi
 
-jetpack download --project pbspro "$PACKAGE_NAME" "$DOWNLOADS_DIRECTORY" || fail
-
-yum install -y "$DOWNLOADS_DIRECTORY/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
+jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
+yum install -y "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
 
 if [[ -n "$SERVER_HOSTNAME" ]]; then
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
@@ -37,9 +35,7 @@ cp $CYCLECLOUD_PROJECT_PATH/default/templates/default/modify_limits.sh /var/spoo
 chmod 0755 /var/spool/pbs/modify_limits.sh || fail
 
 await_node_definition() {
-    if /opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME; then
-        return 0
-    else
+    if ! /opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME; then
         echo "$EXECUTE_HOSTNAME is not in the cluster yet. Retrying next converge" 1>&2
         return 1
     fi
@@ -59,15 +55,13 @@ if ! await_node_definition; then
     done
 
     if [[ $ATTEMPT == $MAX_RETRIES ]]; then
-        echo "Command failed after $MAX_RETRIES attempts. Exiting."
+        echo "Command failed after $MAX_RETRIES attempts. Exiting." 1>&2
         exit 1
     fi
 fi
 
 #This block will execute only if the "execute" node is defined in the PBS server
-echo "Node is defined in PBS server, proceeding with cluster joining..."
-
-NODE_CREATED_GUARD="$(jetpack config cyclecloud.home)/pbs.nodecreated" || fail
+NODE_CREATED_GUARD="pbs.nodecreated" || fail
 if [[ -f $NODE_CREATED_GUARD ]]; then
     echo "Node has already been created, skipping joining checks"
     exit 0

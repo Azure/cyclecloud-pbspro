@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 #
 
-include_recipe 'pbspro::default'
+# include_recipe 'pbspro::default'
 
 # pbsprover = node[:pbspro][:version]
 # plat_ver = node['platform_version'].to_i

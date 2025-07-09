@@ -141,4 +141,5 @@ if [ -e /etc/profile.d ]; then
 which azpbs 2>/dev/null || export PATH=\$PATH:/root/bin
 eval "\$(/opt/cycle/pbspro/venv/bin/register-python-argcomplete azpbs)" || echo "Warning: Autocomplete is disabled" 1>&2
 EOF
+    chmod 0755 /etc/profile.d/azpbs_autocomplete.sh || fail
 fi
