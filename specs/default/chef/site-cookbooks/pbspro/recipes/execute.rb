@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 #
-include_recipe 'pbspro::_updatehostname'
+# include_recipe 'pbspro::_updatehostname'
 # include_recipe 'pbspro::default'
 
 # pbsprover = node[:pbspro][:version]

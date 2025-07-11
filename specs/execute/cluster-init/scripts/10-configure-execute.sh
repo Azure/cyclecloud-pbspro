@@ -8,6 +8,9 @@ PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
 SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail # Note: this requires adding pbspro.scheduler = <whatever_scheduler_hostnameis> to the execute node's config for now
 
+# Forces execute node's hostname to be updated (scalelib is blocked until the hostname is correct)
+$(jetpack config cyclecloud.home)/system/embedded/bin/python -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
+
 if [[ -z "$PACKAGE_NAME" ]]; then
     if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
         PACKAGE_NAME="pbspro-execution-${PBSPRO_VERSION}.x86_64.rpm"
