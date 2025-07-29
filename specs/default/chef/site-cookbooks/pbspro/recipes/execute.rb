@@ -110,16 +110,16 @@ Chef::Log.info("This is what scheduler contains: cluster.scheduler = #{cluster.s
 #   notifies :run, "bash[await-joining-cluster]", :immediately
 # end
 
-defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do
+# defer_block 'Defer setting core count and slot_type, and start of PBS pbs_mom until end of converge' do
 
-  execute "modify_limits" do
-    command "/var/spool/pbs/modify_limits.sh && touch /etc/modify_limits.config"
-    creates "/etc/modify_limits.config"
-    notifies :restart, 'service[pbs]', :immediately
-  end
+#   execute "modify_limits" do
+#     command "/var/spool/pbs/modify_limits.sh && touch /etc/modify_limits.config"
+#     creates "/etc/modify_limits.config"
+#     notifies :restart, 'service[pbs]', :immediately
+#   end
   
-end
+# end
 
-service "pbs" do
-  action :nothing
-end
+# service "pbs" do
+#   action :nothing
+# end
