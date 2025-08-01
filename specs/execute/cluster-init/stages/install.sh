@@ -26,20 +26,21 @@ if [[ -n "$SERVER_HOSTNAME" ]]; then
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
     chmod 0644 /var/spool/pbs/server_name || fail
 
-    cp $CYCLECLOUD_PROJECT_PATH/default/templates/default/mom_config.template /var/spool/pbs/mom_priv/config || fail
+    cp "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/mom_config.template" /var/spool/pbs/mom_priv/config || fail
     chmod 0644 /var/spool/pbs/mom_priv/config || fail
 
     sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \
-        $CYCLECLOUD_PROJECT_PATH/default/templates/default/pbs.conf.template > /etc/pbs.conf || fail
+        "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi
 
-cp $CYCLECLOUD_PROJECT_PATH/default/templates/default/modify_limits.sh /var/spool/pbs/modify_limits.sh || fail
+# TODO: remove this chunk 
+cp "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/modify_limits.sh" /var/spool/pbs/modify_limits.sh || fail
 chmod 0755 /var/spool/pbs/modify_limits.sh || fail
 
 await_node_definition() {
-    if ! /opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME; then
-        echo "$EXECUTE_HOSTNAME is not in the cluster yet. Retrying next converge" 1>&2
+    if ! /opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME"; then
+        echo "${EXECUTE_HOSTNAME} is not in the cluster yet. Retrying next converge" 1>&2
         return 1
     fi
 }
@@ -65,17 +66,17 @@ fi
 
 #This block will execute only if the "execute" node is defined in the PBS server
 NODE_CREATED_GUARD="pbs.nodecreated" || fail
-if [[ -f $NODE_CREATED_GUARD ]]; then
+if [[ -f "$NODE_CREATED_GUARD" ]]; then
     echo "Node has already been created, skipping joining checks"
     exit 0
 fi
 
-NODE_ATTRS=$(/opt/pbs/bin/pbsnodes $EXECUTE_HOSTNAME)
-echo $NODE_ATTRS | grep -qi "$(jetpack config cyclecloud.node.id)" || fail
+NODE_ATTRS=$(/opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME")
+echo "$NODE_ATTRS" | grep -qi "$(jetpack config cyclecloud.node.id)" || fail
 
 if [[ $? -ne 0 ]]; then
     echo "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining." 1>&2
     exit 1
 fi
 
-/opt/pbs/bin/pbsnodes -o $EXECUTE_HOSTNAME -C 'cyclecloud offline' && touch $NODE_CREATED_GUARD || fail
+/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' && touch "$NODE_CREATED_GUARD" || fail

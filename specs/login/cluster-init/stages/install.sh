@@ -22,7 +22,7 @@ yum install -y "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on 
 
 if [[ -n "$SERVER_HOSTNAME" ]]; then
     sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \
-        $CYCLECLOUD_PROJECT_PATH/default/templates/default/pbs.conf.template > /etc/pbs.conf || fail
+        "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi
 

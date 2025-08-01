@@ -1,4 +1,4 @@
-PLATFORM_VERSION=$(jetpack props get os.version_id) || fail
+PLATFORM_VERSION=$(jetpack props get os.version) || fail
 
 if [[ "${PLATFORM_VERSION%%.*}" -ge 8 ]]; then
   jetpack download --project pbspro "$PBSPRO_HWLOCS_LIB_EL8" "/tmp" || fail
