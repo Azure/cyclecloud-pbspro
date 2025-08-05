@@ -3,4 +3,6 @@
 #
 name "pbspro_login_role"
 description "PBSPro Login Role"
-run_list("recipe[cshared::client]")
+run_list(
+    # "recipe[cshared::client]"
+    )

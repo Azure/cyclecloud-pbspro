@@ -17,8 +17,8 @@ if [[ -z "$PACKAGE_NAME" ]]; then
     fi
 fi
 
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
+jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" > /dev/null || fail
+yum install -y -q "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
 
 if [[ -n "$SERVER_HOSTNAME" ]]; then
     sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \

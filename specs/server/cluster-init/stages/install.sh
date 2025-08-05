@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source $CYCLECLOUD_PROJECT_PATH/default/files/default.sh || exit 1
-source $CYCLECLOUD_PROJECT_PATH/default/files/utils.sh || exit 1
-source $CYCLECLOUD_PROJECT_PATH/default/files/hwlocs-install.sh || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
 PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro" || fail
@@ -10,6 +10,7 @@ CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
 IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz" || fail
+CLUSTER_NAME=$(jetpack config cyclecloud.cluster.name) || fail
 
 if [[ -z "$PACKAGE_NAME" ]]; then
     if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
@@ -19,8 +20,18 @@ if [[ -z "$PACKAGE_NAME" ]]; then
     fi
 fi
 
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail # TODO: check for platoform version?
-yum install -y "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
+mkdir -p "/sched/$CLUSTER_NAME" || fail
+
+cat << EOF > /sched/$CLUSTER_NAME/azpbs.env
+#!/bin/bash
+PBS_SCHEDULER_HOSTNAME=$(hostname)
+PBS_SCHEDULER_IP=$(hostname -i)
+
+EOF
+chmod a+r /sched/$CLUSTER_NAME/azpbs.env
+
+jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" > /dev/null || fail # TODO: check for platoform version?
+yum install -y -q "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
 
 mkdir -p "$PBSPRO_AUTOSCALE_PROJECT_HOME" || fail
 chmod 0755 "$PBSPRO_AUTOSCALE_PROJECT_HOME" || fail
@@ -40,7 +51,7 @@ cd "$(jetpack config cyclecloud.bootstrap)" || fail
 
 rm -f "$PBSPRO_AUTOSCALE_INSTALLER" 2> /dev/null || fail
 
-jetpack download "$PBSPRO_AUTOSCALE_INSTALLER" --project pbspro ./ || fail
+jetpack download "$PBSPRO_AUTOSCALE_INSTALLER" --project pbspro ./ > /dev/null || fail
 
 if [ -e cyclecloud-pbspro ]; then
     rm -rf cyclecloud-pbspro/ || fail

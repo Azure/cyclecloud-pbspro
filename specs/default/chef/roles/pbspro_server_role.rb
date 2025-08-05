@@ -3,9 +3,11 @@
 #
 name "pbspro_server_role"
 description "Open PBSPro Server Role"
-run_list("role[scheduler]",
-  "recipe[cshared::directories]",
-  "recipe[pbspro::skel]",
-  "recipe[cshared::server]")
+run_list(
+  # "role[scheduler]",
+  # "recipe[cshared::directories]",
+  # "recipe[pbspro::skel]",
+  "recipe[cshared::server]"
+  )
 
-default_attributes "cyclecloud" => { "discoverable" => true }
+# default_attributes "cyclecloud" => { "discoverable" => true }
