@@ -51,7 +51,8 @@ class PBSCLI(clilib.CommonCLI):
         return self.__driver
 
     def _initconfig(self, config: Dict) -> None:
-        pass
+        if "valid_hostnames" not in config:
+            config["valid_hostnames"] = ".+"
 
     def _initconfig_parser(self, parser: ArgumentParser) -> None:
 

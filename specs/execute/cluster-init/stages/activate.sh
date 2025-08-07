@@ -1,3 +1,3 @@
 #!/bin/bash
 
-systemctl restart pbs
+systemctl start pbs || exit 1

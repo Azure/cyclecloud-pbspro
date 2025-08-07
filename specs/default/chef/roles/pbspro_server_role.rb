@@ -7,7 +7,8 @@ run_list(
   # "role[scheduler]",
   # "recipe[cshared::directories]",
   # "recipe[pbspro::skel]",
-  "recipe[cshared::server]"
+  # "recipe[cuser]",
+  # "recipe[cshared::server]"
   )
 
 # default_attributes "cyclecloud" => { "discoverable" => true }

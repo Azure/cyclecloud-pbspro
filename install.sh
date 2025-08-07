@@ -54,12 +54,12 @@ echo INSTALL_VIRTUALENV=$INSTALL_VIRTUALENV
 echo VENV=$VENV
 
 # remove jetpack's python3 from the path
-export PATH=$(echo $PATH | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
+export PATH=$(echo "$PATH" | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
 set +e
 which python3 > /dev/null;
 if [ $? != 0 ]; then
     if [ $INSTALL_PYTHON3 == 1 ]; then
-        yum install -y python3 || exit 1
+        yum install -y -q python3 || exit 1
     else
         echo Please install python3 >&2;
         exit 1
@@ -68,7 +68,7 @@ fi
 set -e
 
 if [ $INSTALL_VIRTUALENV == 1 ]; then
-    python3 -m pip install virtualenv
+    python3 -m pip install -q virtualenv
 fi
 
 set +e
@@ -76,7 +76,7 @@ python3 -m virtualenv --version 2>&1 > /dev/null
 
 if [ $? != 0 ]; then
     if [ $INSTALL_VIRTUALENV ]; then
-        python3 -m pip install virtualenv || exit 1
+        python3 -m pip install -q virtualenv || exit 1
     else
         echo Please install virtualenv for python3 >&2
         exit 1
@@ -85,18 +85,18 @@ fi
 set -e
 
 python3 -m virtualenv $VENV
-source $VENV/bin/activate
+source "${VENV}/bin/activate"
 # not sure why but pip gets confused installing frozendict locally
 # if you don't install it first. It has no dependencies so this is safe.
-pip install packages/*
+pip install -q packages/*
 
-cat > $VENV/bin/azpbs <<EOF
+cat > "${VENV}/bin/azpbs" <<EOF
 #!$VENV/bin/python
 
 from ${SCHEDULER}.cli import main
 main()
 EOF
-chmod +x $VENV/bin/azpbs
+chmod +x "${VENV}/bin/azpbs"
 
 azpbs -h 2>&1 > /dev/null || exit 1
 
@@ -105,20 +105,20 @@ if [ ! -e /root/bin ]; then
     mkdir /root/bin
 fi
 
-ln -sf $VENV/bin/azpbs /root/bin/
+ln -sf "${VENV}/bin/azpbs" /root/bin/
 
-INSTALL_DIR=$(dirname $VENV)
+INSTALL_DIR=$(dirname "$VENV")
 
 echo Installing "autoscale" hook
-cat > $INSTALL_DIR/autoscale_hook_config.json<<EOF
+cat > "$INSTALL_DIR/autoscale_hook_config.json" << EOF
 {
     "azpbs_path": "$VENV/bin/azpbs",
     "autoscale_json": "$INSTALL_DIR/autoscale.json"
 }
 EOF
 
-cp autoscale_hook.py $INSTALL_DIR/
-cp logging.conf $INSTALL_DIR/
+cp autoscale_hook.py "$INSTALL_DIR/"
+cp logging.conf "$INSTALL_DIR/"
 
 if [ "$CRON_METHOD" == "pbs_hook" ]; then
     /opt/pbs/bin/qmgr -c "list hook autoscale" 1>&2 2>/dev/null || /opt/pbs/bin/qmgr -c "create hook autoscale" 1>&2

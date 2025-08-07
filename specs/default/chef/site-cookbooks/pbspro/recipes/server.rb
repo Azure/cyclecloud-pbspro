@@ -129,7 +129,6 @@
 
 #   ls #{node[:pbspro][:autoscale_project_home]}/autoscale.json || exit 1
 #   azpbs connect || exit 1
-#   systemctl stop pbs
 #   EOH
 
 #   action :run

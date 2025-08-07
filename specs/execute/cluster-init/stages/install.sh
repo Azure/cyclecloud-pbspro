@@ -5,12 +5,13 @@ source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
 PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
+CLUSTER_NAME=$(jetpack config cyclecloud.cluster.name) || fail
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
 SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
-CLUSTER_NAME=$(jetpack config cyclecloud.cluster.name) || fail
 
 # Forces execute node's hostname to be updated (scalelib is blocked until the hostname is correct)
-$(jetpack config cyclecloud.home)/system/embedded/bin/python -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
+# TODO: this installation status should be done by jetpack before cluster-inits are run
+"${CYCLECLOUD_HOME}/system/embedded/bin/python" -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
 
 if [[ -z "$PACKAGE_NAME" ]]; then
     if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
@@ -21,7 +22,7 @@ if [[ -z "$PACKAGE_NAME" ]]; then
 fi
 
 jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
+yum install -y -q "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
 
 if [[ -z "$SERVER_HOSTNAME" ]]; then
     MAX_RETRIES=10
@@ -55,14 +56,10 @@ if [[ -n "$SERVER_HOSTNAME" ]]; then
     cp "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/mom_config.template" /var/spool/pbs/mom_priv/config || fail
     chmod 0644 /var/spool/pbs/mom_priv/config || fail
 
-    sed -e "s|__SERVERNAME__|$SERVER_HOSTNAME|g" \
+    sed -e "s|__SERVERNAME__|${SERVER_HOSTNAME}|g" \
         "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi
-
-# TODO: remove this chunk 
-cp "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/modify_limits.sh" /var/spool/pbs/modify_limits.sh || fail
-chmod 0755 /var/spool/pbs/modify_limits.sh || fail
 
 await_node_definition() {
     if ! /opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME"; then
@@ -91,7 +88,7 @@ if ! await_node_definition; then
 fi
 
 #This block will execute only if the "execute" node is defined in the PBS server
-NODE_CREATED_GUARD="pbs.nodecreated" || fail
+NODE_CREATED_GUARD="pbs.nodecreated"
 if [[ -f "$NODE_CREATED_GUARD" ]]; then
     echo "Node has already been created, skipping joining checks"
     exit 0
@@ -105,4 +102,4 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' && touch "$NODE_CREATED_GUARD" || fail
+(/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' && touch "$NODE_CREATED_GUARD") || fail

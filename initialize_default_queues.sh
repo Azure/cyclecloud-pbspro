@@ -8,7 +8,7 @@ if [ $(whoami) != root ]; then
   exit 1
 fi
 
-source /etc/profile.d/pbs.sh
+source /etc/profile.d/pbs.sh || exit 1
 set -e
 /opt/pbs/bin/qmgr -c "set queue workq resources_default.place = scatter:excl"
 /opt/pbs/bin/qmgr -c "set queue workq resources_default.ungrouped = false"
