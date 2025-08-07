@@ -72,6 +72,7 @@ Autoscale = $Autoscale
     AdditionalClusterInitSpecs = $serverClusterInitSpecs
     
         [[[configuration]]]
+        cyclecloud.discoverable=true
         cyclecloud.mounts.nfs_sched.disabled = true
         cyclecloud.mounts.nfs_shared.disabled = ${NFSType != "External"}
         pbspro.cron_method = $AzpbsCronMethod

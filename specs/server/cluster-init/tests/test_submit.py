@@ -17,7 +17,8 @@ jetpack.util.setup_logging()
 
 logger = logging.getLogger()
 
-CLUSTER_USER = jetpack.config.get("cyclecloud.cluster.user.name")
+CLUSTER_USER = jetpack.config.get("cyclecloud.cluster.user.name") # TODO: this does not exist anymore in chef
+CLUSTER_USER = "cyclecloud"
 
 
 def readfile_if_exist(filename):
