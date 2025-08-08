@@ -5,7 +5,7 @@ source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
 PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
-CLUSTER_NAME=$(jetpack config cyclecloud.cluster.name) || fail
+CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
 SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
 
 if [[ -z "$PACKAGE_NAME" ]]; then
