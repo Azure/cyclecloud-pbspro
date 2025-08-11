@@ -11,14 +11,14 @@ import uuid
 
 import helper
 import jetpack
+from jetpack import props
 
 
 jetpack.util.setup_logging()
 
 logger = logging.getLogger()
 
-# CLUSTER_USER = jetpack.config.get("cyclecloud.cluster.user.name") # TODO: this does not exist anymore in chef
-CLUSTER_USER = "cyclecloud"
+CLUSTER_USER = props.get("cyclecloud.owner")
 
 
 def readfile_if_exist(filename):

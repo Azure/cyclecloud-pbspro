@@ -6,6 +6,7 @@ source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
 PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
 CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
+CONNECTION_URL=$(jq -r .url "$CONFIG_PATH") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
 IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
@@ -80,7 +81,7 @@ fi
 ./generate_autoscale_json.sh --install-dir "$INSTALLDIR" \
                             --username "$(jetpack config cyclecloud.config.username)" \
                             --password "$(jetpack config cyclecloud.config.password)" \
-                            --url "$(jetpack config cyclecloud.config.web_server)" \
+                            --url "$CONNECTION_URL" \
                             --cluster-name "$CLUSTER_NAME" \
                             $IGNORE_QUEUES_ARG
 
