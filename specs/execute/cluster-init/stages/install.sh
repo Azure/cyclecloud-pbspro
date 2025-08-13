@@ -4,24 +4,16 @@ source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
-PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
-SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
+PACKAGE_NAME=$(get_package_name "execution") || fail
+SERVER_HOSTNAME=$(get_server_hostname) || fail
 
 # Forces execute node's hostname to be updated (scalelib is blocked until the hostname is correct)
 # TODO: this installation status should be done by jetpack before cluster-inits are run
 "${CYCLECLOUD_HOME}/system/embedded/bin/python" -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
 
-if [[ -z "$PACKAGE_NAME" ]]; then
-    PACKAGE_NAME=$(get_package_name "execution")
-fi
-
 jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
 yum install -y -q "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
-
-if [[ -z "$SERVER_HOSTNAME" ]]; then
-    SERVER_HOSTNAME=$(get_server_hostname)
-fi
 
 if [[ -n "$SERVER_HOSTNAME" ]]; then
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name

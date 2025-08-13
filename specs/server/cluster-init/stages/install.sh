@@ -4,7 +4,7 @@ source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
 
-PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
+PACKAGE_NAME=$(get_package_name "server") || fail
 CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
 CONNECTION_URL=$(jq -r .url "$CONFIG_PATH") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
@@ -12,10 +12,6 @@ IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro" || fail
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz" || fail
-
-if [[ -z "$PACKAGE_NAME" ]]; then
-    PACKAGE_NAME=$(get_package_name "server")
-fi
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
 
