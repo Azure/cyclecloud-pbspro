@@ -17,11 +17,7 @@ readonly RETRY_DELAY=15
 "${CYCLECLOUD_HOME}/system/embedded/bin/python" -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
 
 if [[ -z "$PACKAGE_NAME" ]]; then
-    if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
-        PACKAGE_NAME="pbspro-execution-${PBSPRO_VERSION}.x86_64.rpm"
-    else
-        PACKAGE_NAME="openpbs-execution-${PBSPRO_VERSION}.x86_64.rpm"
-    fi
+    PACKAGE_NAME=$(get_package_name "execution")
 fi
 
 jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail

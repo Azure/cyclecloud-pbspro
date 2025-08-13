@@ -9,11 +9,7 @@ CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
 SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
 
 if [[ -z "$PACKAGE_NAME" ]]; then
-    if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
-        PACKAGE_NAME="pbspro-client-${PBSPRO_VERSION}.x86_64.rpm"
-    else
-        PACKAGE_NAME="openpbs-client-${PBSPRO_VERSION}.x86_64.rpm"
-    fi
+    PACKAGE_NAME=$(get_package_name "client")
 fi
 
 jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail

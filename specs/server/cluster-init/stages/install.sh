@@ -14,11 +14,7 @@ PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro" || fail
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz" || fail
 
 if [[ -z "$PACKAGE_NAME" ]]; then
-    if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
-        PACKAGE_NAME="pbspro-server-${PBSPRO_VERSION}.x86_64.rpm"
-    else
-        PACKAGE_NAME="openpbs-server-${PBSPRO_VERSION}.x86_64.rpm"
-    fi
+    PACKAGE_NAME=$(get_package_name "server")
 fi
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
