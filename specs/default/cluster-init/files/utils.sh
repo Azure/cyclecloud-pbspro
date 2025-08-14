@@ -2,10 +2,6 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
 
-PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
-SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
-CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
-
 function fail() {
     local errorMsg="$1"
     [[ -z "$errorMsg" ]] || echo -e "ERROR: $errorMsg" >&2
@@ -13,6 +9,7 @@ function fail() {
 }
 
 function get_package_name() {
+    PACKAGE_NAME=$(jetpack config pbspro.package "") || fail
     PACKAGE_TYPE=$1 # Contains "server", "client", or "execution"
 
     if [[ -z "$PACKAGE_NAME" ]]; then
@@ -27,6 +24,9 @@ function get_package_name() {
 }
 
 function get_server_hostname() {
+    SERVER_HOSTNAME=$(jetpack config pbspro.scheduler "") || fail
+    CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
+
     if [[ -z "$SERVER_HOSTNAME" ]]; then
         readonly MAX_RETRIES=10
         readonly RETRY_DELAY=15
