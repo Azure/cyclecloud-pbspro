@@ -52,19 +52,18 @@ if ! await_node_definition; then
     fi
 fi
 
-#This block will execute only if the "execute" node is defined in the PBS server
+# This block will execute only if the "execute" node is defined in the PBS server
 NODE_CREATED_GUARD="pbs.nodecreated"
 if [[ -f "$NODE_CREATED_GUARD" ]]; then
     echo "Node has already been created, skipping joining checks"
-    exit 0
+else
+    NODE_ATTRS=$(/opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME")
+    echo "$NODE_ATTRS" | grep -qi "$(jetpack config cyclecloud.node.id)"
+
+    if [[ $? -ne 0 ]]; then
+        fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
+    fi
+
+    /opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' || fail
+    touch "$NODE_CREATED_GUARD" || fail
 fi
-
-NODE_ATTRS=$(/opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME")
-echo "$NODE_ATTRS" | grep -qi "$(jetpack config cyclecloud.node.id)"
-
-if [[ $? -ne 0 ]]; then
-    fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
-fi
-
-/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' || fail
-touch "$NODE_CREATED_GUARD" || fail
