@@ -47,7 +47,7 @@ function get_server_hostname() {
                 fail "Failed to read /sched/${cluster_name}/azpbs.env after $max_retries attempts. Exiting."
             fi
         fi
-        source "/sched/${cluster_name}/azpbs.env" || exit 1
+        source "/sched/${cluster_name}/azpbs.env" || fail
         echo "$PBS_SCHEDULER_HOSTNAME"
     else
         echo "$server_hostname"
