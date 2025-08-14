@@ -75,7 +75,8 @@ fi
                             --password "$(jetpack config cyclecloud.config.password)" \
                             --url "$CONNECTION_URL" \
                             --cluster-name "$CLUSTER_NAME" \
-                            $IGNORE_QUEUES_ARG
+                            $IGNORE_QUEUES_ARG \
+                            || fail
 
 ls "${PBSPRO_AUTOSCALE_PROJECT_HOME}/autoscale.json" || fail
 azpbs connect || fail
