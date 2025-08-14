@@ -8,6 +8,20 @@ function fail() {
     exit 2
 }
 
+function bool() {
+  # Delegate using the arguments given, each separately quoted
+  "$@"
+
+  local exitCode=$?
+  if [[ $exitCode -eq 0 ]]; then
+      return 0
+  elif [[ $exitCode -eq 1 ]]; then
+      return 1
+  else
+      fail "Unexpected exit code $exitCode"
+  fi
+}
+
 function get_package_name() {
     local package_name=$(jetpack config pbspro.package "") || fail
     local package_type=$1 # Contains "server", "client", or "execution"

@@ -58,7 +58,10 @@ if [[ -f "$NODE_CREATED_GUARD" ]]; then
     echo "Node has already been created, skipping joining checks"
 else
     NODE_ATTRS=$(/opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME") || fail
-    (echo "$NODE_ATTRS" | grep -qi "$(jetpack config cyclecloud.node.id)") || fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
+    NODE_ID=$(jetpack config cyclecloud.node.id) || fail
+    if ! echo "$NODE_ATTRS" | bool grep -qi "$NODE_ID"; then
+        fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
+    fi
 
     /opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' || fail
 
