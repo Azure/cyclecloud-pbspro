@@ -48,8 +48,7 @@ if ! await_node_definition; then
     done
 
     if [[ $ATTEMPT == $MAX_RETRIES ]]; then
-        echo "Command failed after $MAX_RETRIES attempts. Exiting." 1>&2
-        exit 1
+        fail "Command failed after $MAX_RETRIES attempts. Exiting."
     fi
 fi
 
@@ -64,8 +63,7 @@ NODE_ATTRS=$(/opt/pbs/bin/pbsnodes "$EXECUTE_HOSTNAME")
 echo "$NODE_ATTRS" | grep -qi "$(jetpack config cyclecloud.node.id)"
 
 if [[ $? -ne 0 ]]; then
-    echo "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining." 1>&2
-    exit 1
+    fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
 fi
 
 (/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' && touch "$NODE_CREATED_GUARD") || fail
