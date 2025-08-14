@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || fail
 
 PACKAGE_NAME=$(get_package_name "server") || fail
 CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
@@ -10,8 +10,8 @@ CONNECTION_URL=$(jq -r .url "$CONFIG_PATH") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
 IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
-PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro" || fail
-PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz" || fail
+PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro"
+PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz"
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
 
@@ -36,7 +36,7 @@ chmod 0644 /var/spool/pbs/sched_priv/sched_config || fail
 systemctl enable --now pbs || fail
 
 source /etc/profile.d/pbs.sh || fail
-export PATH=$PATH:/root/bin
+PATH=$PATH:/root/bin
 
 cd "$BOOTSTRAP_HOME" || fail # TODO: find a new location instead of BOOTSTRAP_HOME
 

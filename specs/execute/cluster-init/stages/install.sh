@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || fail
 
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
 PACKAGE_NAME=$(get_package_name "execution") || fail
