@@ -40,7 +40,7 @@ PATH=$PATH:/root/bin
 
 cd "$BOOTSTRAP_HOME" || fail # TODO: find a new location instead of BOOTSTRAP_HOME
 
-rm -f "$PBSPRO_AUTOSCALE_INSTALLER" 2> /dev/null || fail
+rm -f "$PBSPRO_AUTOSCALE_INSTALLER" || fail
 
 jetpack download "$PBSPRO_AUTOSCALE_INSTALLER" --project pbspro ./ || fail
 
