@@ -44,8 +44,7 @@ function get_server_hostname() {
             done
 
             if [[ $attempt == $max_retries ]]; then
-                echo "Failed to read /sched/${cluster_name}/azpbs.env after $max_retries attempts. Exiting." 1>&2
-                exit 1
+                fail "Failed to read /sched/${cluster_name}/azpbs.env after $max_retries attempts. Exiting."
             fi
         fi
         source "/sched/${cluster_name}/azpbs.env" || exit 1
