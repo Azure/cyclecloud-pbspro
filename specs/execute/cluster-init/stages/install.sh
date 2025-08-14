@@ -66,4 +66,5 @@ if [[ $? -ne 0 ]]; then
     fail "Stale entry found for $EXECUTE_HOSTNAME. Waiting for autoscaler to update this before joining."
 fi
 
-(/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' && touch "$NODE_CREATED_GUARD") || fail
+/opt/pbs/bin/pbsnodes -o "$EXECUTE_HOSTNAME" -C 'cyclecloud offline' || fail
+touch "$NODE_CREATED_GUARD" || fail
