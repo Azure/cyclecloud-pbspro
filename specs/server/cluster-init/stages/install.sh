@@ -24,8 +24,8 @@ PBS_SCHEDULER_IP=$(hostname -i)
 EOF
 chmod a+r "/sched/${CLUSTER_NAME}/azpbs.env" || fail
 
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail # TODO: check for platform version?
-yum install -y -q "/tmp/$PACKAGE_NAME" || fail # TODO: this is slow, won't work on all linux distros, and will not be final--Emily and Doug's install-package will be used instead
+jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
+yum install -y -q "/tmp/$PACKAGE_NAME" || fail
 
 mkdir -p -m 0755 "$PBSPRO_AUTOSCALE_PROJECT_HOME" || fail
 
