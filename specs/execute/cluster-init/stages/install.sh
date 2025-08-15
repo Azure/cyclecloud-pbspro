@@ -3,7 +3,7 @@
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
 
-"${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || fail
+"${CYCLECLOUD_PROJECT_PATH}/default/scripts/hwlocs-install.sh" || fail
 
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
 PACKAGE_NAME=$(get_package_name "execution") || fail
