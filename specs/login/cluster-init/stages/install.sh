@@ -2,7 +2,8 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || fail
+
+"${CYCLECLOUD_PROJECT_PATH}/default/files/hwlocs-install.sh" || fail
 
 PACKAGE_NAME=$(get_package_name "client") || fail
 SERVER_HOSTNAME=$(get_server_hostname) || fail
