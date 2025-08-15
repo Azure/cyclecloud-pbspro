@@ -6,7 +6,7 @@ import subprocess
 import os
 import sys
 import traceback
-import StringIO
+from io import StringIO
 import logging
 import platform
 
@@ -59,7 +59,7 @@ def get_chef_role(role_name):
 
 def exception_to_str():
     t, e, tb = sys.exc_info()
-    f = StringIO.StringIO()
+    f = StringIO()
     traceback.print_tb(tb, None, f)
     stack_trace = f.getvalue()
     if e.message == '':
