@@ -7,6 +7,10 @@ include_recipe 'pbspro::default'
 pbsprover = node[:pbspro][:version]
 plat_ver = node['platform_version'].to_i
 pbsdist = "el#{plat_ver}"
+pbs_professional = node[:pbspro][:professional]
+pbsdata_uid = node[:pbspro][:pbsdata_uid]
+pbsdata_gid = node[:pbspro][:pbsdata_gid]
+
 cron_method = node[:pbspro][:cron_method] || "pbs_cron"
 package_name = node[:pbspro][:package]
 
@@ -29,15 +33,35 @@ else
 end
 
 if package_name.nil?
-  if pbsprover.to_i < 20 
-    package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+  if pbs_professional
+    package_name = "pbspro-server-#{pbsprover}.#{pbsdist}.x86_64.rpm"
   else
-    package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+    if pbsprover.to_i < 20 
+      package_name = "pbspro-server-#{pbsprover}.x86_64.rpm"
+    else
+      package_name = "openpbs-server-#{pbsprover}.x86_64.rpm"
+    end
   end
 end
 
 jetpack_download package_name do
   project 'pbspro'
+end
+
+if pbs_professional
+  group 'pbsdata' do
+    gid pbsdata_gid
+    system true
+  end
+
+  user 'pbsdata' do
+    system true
+    uid pbsdata_uid
+    gid 'pbsdata'
+    manage_home true
+    home '/home/pbsdata'
+    shell '/bin/bash'
+  end
 end
 
 if plat_ver < 8
@@ -78,6 +102,17 @@ end
 
 service "pbs" do
   action [:enable, :start]
+end
+
+if pbs_professional
+pbspro_license = node[:pbspro][:license]
+  bash 'setup license cyclecloud-pbspro' do
+    code <<-EOH
+     /opt/pbs/bin/qmgr -c 'set server pbs_license_info=#{pbspro_license}'
+    EOH
+
+    action :run
+  end
 end
 
 file "/etc/profile.d/azpbs_autocomplete.sh" do
