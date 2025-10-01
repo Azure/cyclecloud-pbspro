@@ -94,7 +94,7 @@ temp_autoscale=$TEMP/autoscale.json.$(date +%s)
                 --lock-file    $INSTALLDIR/scalelib.lock \
                 --log-config   $INSTALLDIR/logging.conf \
                 --disable-default-resources \
-                --default-resource '{"select": {}, "name": "ncpus", "value": "node.pcpu_count"}' \
+                --default-resource '{"select": {}, "name": "ncpus", "value": "node.vcpu_count"}' \
                 --default-resource '{"select": {}, "name": "ngpus", "value": "node.gpu_count"}' \
                 --default-resource '{"select": {}, "name": "disk", "value": "size::20g"}' \
                 --default-resource '{"select": {}, "name": "host", "value": "node.hostname"}' \
