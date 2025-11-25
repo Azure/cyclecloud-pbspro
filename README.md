@@ -154,6 +154,13 @@ have. Here is an example of handling VM Size specific disk size
    }
    ```
 
+### Dynamic Resources
+If you use dynamic resources, for example for License checking, make sure to update the sched_priv/config file to use the dynamic wrapper script located in `/opt/cycle/pbspro/server_dyn_res_wrapper.sh`. For example, if you have a dynamic resource called `server_dyn_res`, you would add the following line to your sched_priv/config file.
+
+```
+server_dyn_res: "myres !/opt/cycle/pbspro/server_dyn_res_wrapper.sh myres /path/to/my/script.sh"
+```
+
 # azpbs cli
 The `azpbs` cli is the main interface for all autoscaling behavior. Note that it has a fairly powerful autocomplete capabilities. For example, typing `azpbs create_nodes --vm-size ` and then you can tab-complete the list of possible VM Sizes. Autocomplete information is updated every `azpbs autoscale` cycle, but can also be refreshed manually by running `azpbs refresh_autocomplete`.
 
