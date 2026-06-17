@@ -126,9 +126,13 @@ class PBSProQueue:
 
             if shared_resource_list[0].is_consumable:
 
+                # A queue/server (non-host) consumable is consumed once for the
+                # whole job, not once per node. decrement_once ensures the shared
+                # value is decremented a single time even when the job spans
+                # multiple nodes (which each invoke do_decrement).
                 ret.append(
                     conslib.SharedConsumableConstraint(
-                        shared_resource_list, rvalue / nodect
+                        shared_resource_list, rvalue, decrement_once=True
                     )
                 )
             else:
