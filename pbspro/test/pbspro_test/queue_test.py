@@ -100,6 +100,59 @@ def test_non_schedulable_shared_resources() -> None:
     assert test_queue.resource_state.shared_resources["qres"][0].current_value == 3
 
 
+def test_shared_resource_decremented_once_across_nodes() -> None:
+    # A queue-level (flag=q) consumable is consumed once for the whole job,
+    # not once per node. A multi-node job (nodect > 1) reuses the same
+    # constraint instance for each node it spans, so the shared value must
+    # only be decremented a single time - and the request must stay integral.
+    test_queue = PBSProQueue(
+        name="testq",
+        queue_type="execution",
+        total_jobs=0,
+        state_count={},
+        resources_default={},
+        default_chunk={},
+        node_group_enable=True,
+        node_group_key="group_id",
+        resource_state=ResourceState(
+            resources_available={},
+            resources_assigned={},
+            shared_resources={
+                "qres": [
+                    SharedConsumableResource(
+                        resource_name="qres",
+                        source="queue",
+                        current_value=10,
+                        initial_value=10,
+                    )
+                ]
+            },
+        ),
+        resource_definitions={
+            "qres": PBSProResourceDefinition("qres", LongType(), flag="q")
+        },
+        enabled=True,
+        started=True,
+    )
+
+    # Job requests qres=1 and spans 3 nodes.
+    non_host_cons = test_queue.get_non_host_constraints({"qres": 1}, 3)
+    assert len(non_host_cons) == 1
+
+    qres = test_queue.resource_state.shared_resources["qres"][0]
+
+    # Simulate the autoscaler decrementing once per node the job spans.
+    for i in range(3):
+        snode = SchedulerNode("localhost-{}".format(i), {})
+        assert snode.decrement(non_host_cons)
+
+    # Exactly one unit consumed total (not 3), and the value remains an int.
+    assert qres.current_value == 9, "Expected 9, got {!r}".format(qres.current_value)
+    assert isinstance(
+        qres.current_value, int
+    ), "Expected int, got {}".format(type(qres.current_value).__name__)
+
+
 @pytest.mark.skip
 def test_disabled_queues() -> None:
     assert False
