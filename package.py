@@ -11,7 +11,7 @@ from subprocess import check_call
 from typing import Dict, List, Optional
 from util import download_release_files
 
-SCALELIB_VERSION = "1.0.5"
+SCALELIB_VERSION = "1.0.11"
 CYCLECLOUD_API_VERSION = "8.3.1"
 
 
