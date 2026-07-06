@@ -8,6 +8,9 @@ if [ $(whoami) != root ]; then
   exit 1
 fi
 
+# Set restrictive umask to prevent creation of world-readable files containing credentials
+umask 077
+
 export PATH=$PATH:/root/bin
 
 if [ -e /etc/profile.d/pbs.sh ]; then
@@ -78,11 +81,11 @@ if [ "$INSTALLDIR" == "" ]; then usage; fi
 
 if [ -e $INSTALLDIR/autoscale.json ]; then
     if [ ! -e $INSTALLDIR/backups ]; then
-        mkdir $INSTALLDIR/backups
+        install -d -m 700 -o cyclecloud -g cyclecloud $INSTALLDIR/backups
     fi
     backup_file=$INSTALLDIR/backups/autoscale.json.$(date +%s)
     echo backing up $INSTALLDIR/autoscale.json to $backup_file
-    cp $INSTALLDIR/autoscale.json $backup_file
+    install -m 600 -o cyclecloud -g cyclecloud $INSTALLDIR/autoscale.json $backup_file
 fi
 
 temp_autoscale=$TEMP/autoscale.json.$(date +%s)
@@ -104,7 +107,7 @@ temp_autoscale=$TEMP/autoscale.json.$(date +%s)
                 --default-resource '{"select": {}, "name": "vm_size", "value": "node.vm_size"}' \
                 --idle-timeout 300 \
                 --boot-timeout 3600 $IGNORE_QUEUES_ARG\
-                > $temp_autoscale && mv $temp_autoscale $INSTALLDIR/autoscale.json ) || (rm -f $temp_autoscale.json; exit 1)
+                > $temp_autoscale && install -m 600 -o cyclecloud -g cyclecloud $temp_autoscale $INSTALLDIR/autoscale.json && rm -f $temp_autoscale ) || (rm -f $temp_autoscale; exit 1)
 
 echo testing that we can connect to CycleCloud...
 azpbs connect && echo success! || (echo Please check the arguments passed in and try again && exit 1)
