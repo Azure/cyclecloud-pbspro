@@ -11,6 +11,7 @@ from pbspro.util import filter_host_resources, filter_non_host_resources
 if typing.TYPE_CHECKING:
     from pbspro.pbsqueue import StateCountType  # noqa: F401
     from pbspro.pbsqueue import PBSProLimit
+    from pbspro.pbsqueue import QueueLimit  # noqa: F401
     from pbspro.resource import (  # noqa: F401
         PBSProResourceDefinition,
         ResourceState,
@@ -27,7 +28,10 @@ class PBSProParser:
     def resource_definitions(self) -> Dict[str, "PBSProResourceDefinition"]:
         return self.__resource_definitions
 
-    def convert_resource_list(self, raw_dict: Dict[str, Any],) -> Dict[str, Any]:
+    def convert_resource_list(
+        self,
+        raw_dict: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         secondary parsing of Resource_List dictionary. Mostly this will convert
         resources to their appropriate type, as per PBSProResourceDefinition.parse
@@ -63,7 +67,9 @@ class PBSProParser:
         all possible numbers in the range, just the size.
         """
         if "," in expr:
-            return sum([self.parse_range_size(sub_expr) for sub_expr in expr.split(",")])
+            return sum(
+                [self.parse_range_size(sub_expr) for sub_expr in expr.split(",")]
+            )
         step = 1
         if ":" in expr:
             expr, step_expr = expr.split(":")
@@ -354,8 +360,68 @@ class PBSProParser:
 
         return ret
 
-    def parse_resources_from_sched_priv(self, path: str) -> Set[str]:
+    def parse_queue_limits(self, qconfig: Dict[str, Any]) -> List["QueueLimit"]:
+        """
+        Parse a queue's run-limit attributes into QueueLimit objects so the
+        autoscaler can cap demand at each limit's remaining budget.
 
+        Recognized attributes:
+          - max_run                -> overall/user/group/project count limit
+          - max_run_res.<res>      -> per-resource run limit (e.g. ncpus, mem)
+          - max_running            -> legacy overall running-job count limit
+          - max_user_run           -> legacy per-user running-job count limit
+          - max_group_run          -> legacy per-group running-job count limit
+
+        Soft limits (max_run_soft, max_run_res_soft.<res>) are ignored because
+        they do not prevent PBS from dispatching jobs, so they create no phantom
+        demand. Any attribute that fails to parse is logged and skipped so that a
+        single malformed value does not abort the autoscale run.
+        """
+        # avoid circular import
+        from pbspro.pbsqueue import PBSProLimit, QueueLimit
+
+        ret: List["QueueLimit"] = []
+
+        for key, value in qconfig.items():
+            try:
+                if key in ("max_run_soft",) or key.startswith("max_run_res_soft."):
+                    # soft limits do not block dispatch -> no phantom demand
+                    continue
+
+                if key == "max_run":
+                    ret.append(
+                        QueueLimit(key, None, self.parse_limit_expression(str(value)))
+                    )
+                elif key.startswith("max_run_res."):
+                    resource = key[len("max_run_res.") :]
+                    ret.append(
+                        QueueLimit(
+                            key, resource, self.parse_limit_expression(str(value))
+                        )
+                    )
+                elif key == "max_running":
+                    limit = PBSProLimit()
+                    limit.overall["PBS_ALL"] = int(value)
+                    ret.append(QueueLimit(key, None, limit))
+                elif key == "max_user_run":
+                    limit = PBSProLimit()
+                    limit.user["PBS_GENERIC"] = int(value)
+                    ret.append(QueueLimit(key, None, limit))
+                elif key == "max_group_run":
+                    limit = PBSProLimit()
+                    limit.group["PBS_GENERIC"] = int(value)
+                    ret.append(QueueLimit(key, None, limit))
+            except Exception:
+                logging.warning(
+                    "Could not parse queue run limit %s=%s: skipping this limit.",
+                    key,
+                    value,
+                    exc_info=True,
+                )
+
+        return ret
+
+    def parse_resources_from_sched_priv(self, path: str) -> Set[str]:
         with io.open(path, "r", encoding="utf-8") as fr:
             for line in fr.readlines():
                 line = line.strip()

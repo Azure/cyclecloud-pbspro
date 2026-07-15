@@ -28,15 +28,14 @@ from hpc.autoscale.util import (
 from pbspro.constants import PBSProJobStates
 from pbspro.parser import get_pbspro_parser
 from pbspro.pbscmd import PBSCMD
-from pbspro.pbsqueue import PBSProQueue, read_queues
+from pbspro.pbsqueue import PBSProQueue, QueueLimitTracker, read_queues
 from pbspro.resource import PBSProResourceDefinition
 from pbspro.scheduler import PBSProScheduler, read_schedulers
 
 # sched_config = "/var/spool/pbs/sched_priv/sched_config"
 
 
-class PBSEnvironmentError(RuntimeError):
-    ...
+class PBSEnvironmentError(RuntimeError): ...
 
 
 class PBSProDriver(SchedulerDriver):
@@ -70,7 +69,6 @@ class PBSProDriver(SchedulerDriver):
         if os.getenv("AUTOSCALE_HOME"):
             return os.environ["AUTOSCALE_HOME"]
         return os.path.join("/opt", "cycle", self.name)
-
 
     @property
     def resource_definitions(self) -> Dict[str, PBSProResourceDefinition]:
@@ -118,23 +116,23 @@ class PBSProDriver(SchedulerDriver):
 
         node_mgr.add_default_resource({}, "ungrouped", ungrouped)
         pbsnodes_response = self.pbscmd.pbsnodes_parsed("-a")
-        by_hostname = partition(
-            pbsnodes_response, lambda x: x.get("name")
-        )
+        by_hostname = partition(pbsnodes_response, lambda x: x.get("name"))
 
         for node in node_mgr.get_nodes():
             # close out any failed nodes up front
             if node.state == "Failed":
                 node.closed = True
-            
+
             if not node.hostname:
                 continue
-            
+
             # assign keep_offline to these nodes and close them off from further
             # assignment
             pbsnodes_record = by_hostname.get(node.hostname)
 
-            if pbsnodes_record and pbsnodes_record[0].get("resources_available.ccnodeid"):
+            if pbsnodes_record and pbsnodes_record[0].get(
+                "resources_available.ccnodeid"
+            ):
                 comment = pbsnodes_record[0].get("comment", "")
                 if comment.startswith("cyclecloud keep offline"):
                     node.assign("keep_offline")
@@ -145,7 +143,8 @@ class PBSProDriver(SchedulerDriver):
         self, scheduler_nodes: List[SchedulerNode], cc_nodes: List[Node]
     ) -> None:
         cc_by_node_id = partition_single(
-            cc_nodes, lambda n: n.delayed_node_id.node_id or n.hostname_or_uuid,
+            cc_nodes,
+            lambda n: n.delayed_node_id.node_id or n.hostname_or_uuid,
         )
         # Special case handling when users change their hostname after the node is already
         # added to the cluster. Note that the hostname MUST MATCH THAT IN CYCLECLOUD!
@@ -608,7 +607,10 @@ class PBSProDriver(SchedulerDriver):
         jobs = self.parse_jobs(queues, scheduler.resources_for_scheduling)
         return jobs, nodes
 
-    def parse_scheduler_nodes(self, force: bool = False,) -> List[Node]:
+    def parse_scheduler_nodes(
+        self,
+        force: bool = False,
+    ) -> List[Node]:
         if force or self.__scheduler_nodes_cache is None:
             self.__scheduler_nodes_cache = parse_scheduler_nodes(
                 self.config, self.pbscmd, self.resource_definitions
@@ -693,6 +695,54 @@ class PBSProNodeQueue(NodeQueue):
         return super().early_bailout(node)
 
 
+def _job_scopes(
+    jdict: Dict[str, Any],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Resolve a job's effective user, group and project for run-limit evaluation.
+
+    Uses the effective user/group (euser/egroup) that PBS itself enforces limits
+    against, falling back to the owner in Job_Owner (user@host) when euser is
+    absent. The implicit default project is treated as "no project".
+    """
+    user = jdict.get("euser")
+    if not user:
+        owner = jdict.get("Job_Owner")
+        if owner:
+            user = owner.split("@", 1)[0]
+
+    group = jdict.get("egroup") or None
+
+    project = jdict.get("project") or None
+    if project == "_pbs_project_default":
+        project = None
+
+    return user, group, project
+
+
+def _job_total_resources(
+    res_list: Dict[str, Any],
+    resource_definitions: Dict[str, PBSProResourceDefinition],
+) -> Dict[str, Any]:
+    """
+    Extract a job's total numeric resource requests from its Resource_List,
+    parsing string values via their resource definition. Structural keys and
+    non-numeric (e.g. boolean) resources are ignored.
+    """
+    parser = get_pbspro_parser()
+    converted = parser.convert_resource_list(res_list)
+
+    ret: Dict[str, Any] = {}
+    for rname, rvalue in converted.items():
+        if rname in ("select", "schedselect", "place", "nodect"):
+            continue
+        if isinstance(rvalue, bool):
+            continue
+        if isinstance(rvalue, (int, float)):
+            ret[rname] = rvalue
+    return ret
+
+
 def parse_jobs(
     pbscmd: PBSCMD,
     resource_definitions: Dict[str, PBSProResourceDefinition],
@@ -708,6 +758,32 @@ def parse_jobs(
     ret: List[Job] = []
 
     response: Dict = pbscmd.qstat_json("-f", "-t")
+
+    # First pass: aggregate running usage so each queue's run limits (max_run,
+    # max_run_res.<res>, etc.) can be capped at their remaining budget. Only
+    # queues that actually define run limits get a tracker.
+    trackers: Dict[str, QueueLimitTracker] = {
+        name: QueueLimitTracker(name, queue.limits)
+        for name, queue in queues.items()
+        if queue.limits
+    }
+
+    if trackers:
+        for _, jdict in response.get("Jobs", {}).items():
+            if jdict.get("job_state") != PBSProJobStates.Running:
+                continue
+            qname = jdict.get("queue")
+            tracker = trackers.get(qname) if qname else None
+            if tracker is None:
+                continue
+            res_list = dict(jdict.get("Resource_List", {}))
+            user, group, project = _job_scopes(jdict)
+            tracker.add_running_usage(
+                user,
+                group,
+                project,
+                _job_total_resources(res_list, resource_definitions),
+            )
 
     for job_id, jdict in response.get("Jobs", {}).items():
         job_id = job_id.split(".")[0]
@@ -746,6 +822,19 @@ def parse_jobs(
         res_list["schedselect"] = jdict["schedselect"]
         rdict = parser.convert_resource_list(res_list)
 
+        # Run-limit context for this job. tracker is None unless the queue
+        # defines run limits, in which case job_total_resources holds the job's
+        # whole request (used to draw from per-scope budget pools).
+        tracker = trackers.get(qname)
+        limit_user, limit_group, limit_project = _job_scopes(jdict)
+        job_total_resources = {
+            rname: rvalue
+            for rname, rvalue in rdict.items()
+            if rname not in ("select", "schedselect", "place", "nodect")
+            and isinstance(rvalue, (int, float))
+            and not isinstance(rvalue, bool)
+        }
+
         pack = (
             PackingStrategy.PACK
             if rdict["place"]["arrangement"] in ["free", "pack"]
@@ -753,9 +842,7 @@ def parse_jobs(
         )
 
         # SMP style jobs
-        is_smp = (
-            rdict["place"].get("grouping") == "host"
-        )
+        is_smp = rdict["place"].get("grouping") == "host"
 
         # pack jobs do not need to define node_count
 
@@ -862,6 +949,16 @@ def parse_jobs(
                 job_resources, node_count
             )
             constraints.extend(queue_constraints)
+
+            if tracker is not None:
+                constraints.extend(
+                    tracker.get_constraints(
+                        limit_user,
+                        limit_group,
+                        limit_project,
+                        job_total_resources,
+                    )
+                )
 
             job = Job(
                 name=my_job_id,

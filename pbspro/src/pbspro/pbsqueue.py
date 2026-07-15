@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import typing_extensions
 from hpc.autoscale.node import constraints as conslib
@@ -38,6 +38,7 @@ class PBSProQueue:
         resource_definitions: Dict[str, PBSProResourceDefinition],
         enabled: bool,
         started: bool,
+        limits: Optional[List["QueueLimit"]] = None,
     ) -> None:
         """{
             "type": "Queue",
@@ -60,6 +61,7 @@ class PBSProQueue:
         self.enabled = enabled
         self.started = started
         self.resource_state = resource_state
+        self.limits = limits or []
         self.__resource_definitions = filter_non_host_resources(resource_definitions)
 
     @property
@@ -116,9 +118,9 @@ class PBSProQueue:
                     f"Undefined resource {rname}. Is this a misconfigured server_dyn_res?"
                 )
 
-            shared_resource_list: List[
-                conslib.SharedResource
-            ] = self.resource_state.shared_resources[rname]
+            shared_resource_list: List[conslib.SharedResource] = (
+                self.resource_state.shared_resources[rname]
+            )
 
             assert (
                 shared_resource_list
@@ -206,6 +208,7 @@ def read_queues(
             enabled=qdict["enabled"].lower() == "true"
             and qdict["name"] not in ignore_queues,
             started=qdict["started"].lower() == "true",
+            limits=parser.parse_queue_limits(qdict),
         )
         ret[queue.name] = queue
 
@@ -226,7 +229,7 @@ class PBSProLimit:
         project: Optional[str] = None,
     ) -> int:
         groups = groups or []
-        limit = 2 ** 31
+        limit = 2**31
 
         if "PBS_ALL" in self.overall:
             limit = min(limit, self.overall["PBS_ALL"])
@@ -277,3 +280,186 @@ class PBSProLimit:
                 "user": self.user,
             }
         )
+
+
+# scope kinds evaluated for every job, in (kind, PBSProLimit-attribute) form.
+# "overall" is special-cased because it always resolves against the PBS_ALL key.
+_SCOPE_KINDS = ["overall", "user", "group", "project"]
+
+
+class QueueLimit:
+    """
+    A single parsed run-limit attribute on a queue.
+
+    resource is None for count limits (max_run, max_running, max_user_run,
+    max_group_run) and the resource name (e.g. "ncpus") for resource limits
+    (max_run_res.<res>). limit holds the per-scope values.
+    """
+
+    def __init__(
+        self, source_attr: str, resource: Optional[str], limit: PBSProLimit
+    ) -> None:
+        self.source_attr = source_attr
+        self.resource = resource
+        self.limit = limit
+
+    @property
+    def is_count(self) -> bool:
+        return self.resource is None
+
+    def __repr__(self) -> str:
+        return "QueueLimit(attr={}, resource={}, limit={})".format(
+            self.source_attr, self.resource, self.limit
+        )
+
+
+class QueueLimitTracker:
+    """
+    Caps autoscale demand for a queue at each run limit's remaining budget.
+
+    A run limit is modeled as a finite shared pool the jobs draw from, using the
+    same SharedConsumableResource / SharedConsumableConstraint machinery already
+    used for license-style queue/server resources. The remaining budget for a
+    scope is the configured limit minus the amount already consumed by that
+    scope's running jobs, so the autoscaler only acquires capacity PBS can
+    actually dispatch.
+
+    Distinct scope instances (e.g. two different users under a per-user limit)
+    map to distinct pools, so one scope exhausting its budget does not block
+    another.
+    """
+
+    def __init__(self, queue_name: str, limits: List[QueueLimit]) -> None:
+        self.queue_name = queue_name
+        self.limits = limits
+        # running usage keyed by (scope_kind, scope_name, resource_or_None).
+        # resource_or_None is None for the running-job count.
+        self._usage: Dict[Tuple[str, str, Optional[str]], float] = {}
+        # pools shared across all jobs, keyed by
+        # (source_attr, scope_kind, scope_name, resource_or_None).
+        self._pools: Dict[
+            Tuple[str, str, str, Optional[str]], conslib.SharedConsumableResource
+        ] = {}
+
+    @property
+    def active(self) -> bool:
+        return bool(self.limits)
+
+    def add_running_usage(
+        self,
+        user: Optional[str],
+        group: Optional[str],
+        project: Optional[str],
+        resources: Dict[str, Any],
+    ) -> None:
+        """Accumulate a running job's contribution to per-scope usage."""
+        for scope_kind, scope_name in self._scopes(user, group, project):
+            count_key: Tuple[str, str, Optional[str]] = (scope_kind, scope_name, None)
+            self._usage[count_key] = self._usage.get(count_key, 0) + 1
+
+            for res_name, amount in resources.items():
+                if not isinstance(amount, (int, float)) or isinstance(amount, bool):
+                    continue
+                res_key: Tuple[str, str, Optional[str]] = (
+                    scope_kind,
+                    scope_name,
+                    res_name,
+                )
+                self._usage[res_key] = self._usage.get(res_key, 0) + amount
+
+    def get_constraints(
+        self,
+        user: Optional[str],
+        group: Optional[str],
+        project: Optional[str],
+        resources: Dict[str, Any],
+    ) -> List[conslib.NodeConstraint]:
+        """
+        Build the shared-consumable constraints that cap a queued job's demand.
+
+        resources must be the job's total requested resources (Resource_List),
+        so a resource limit consumes the job's whole request the way PBS accounts
+        the equivalent regular resource.
+        """
+        ret: List[conslib.NodeConstraint] = []
+
+        for queue_limit in self.limits:
+            for scope_kind, scope_name in self._scopes(user, group, project):
+                limit_value = self._scope_limit(
+                    queue_limit.limit, scope_kind, scope_name
+                )
+                if limit_value is None:
+                    # this scope is not limited (no specific nor PBS_GENERIC entry)
+                    continue
+
+                if queue_limit.is_count:
+                    amount: float = 1
+                else:
+                    amount = resources.get(queue_limit.resource)  # type: ignore
+                    if not isinstance(amount, (int, float)) or isinstance(amount, bool):
+                        continue
+                    if amount <= 0:
+                        continue
+
+                pool = self._get_pool(queue_limit, scope_kind, scope_name, limit_value)
+                ret.append(
+                    conslib.SharedConsumableConstraint(
+                        [pool], amount, decrement_once=True
+                    )
+                )
+
+        return ret
+
+    def _scopes(
+        self, user: Optional[str], group: Optional[str], project: Optional[str]
+    ) -> List[Tuple[str, str]]:
+        scope_values = {
+            "overall": "PBS_ALL",
+            "user": user,
+            "group": group,
+            "project": project,
+        }
+        return [
+            (kind, scope_values[kind]) for kind in _SCOPE_KINDS if scope_values[kind]
+        ]
+
+    @staticmethod
+    def _scope_limit(
+        limit: PBSProLimit, scope_kind: str, scope_name: str
+    ) -> Optional[int]:
+        if scope_kind == "overall":
+            return limit.overall.get("PBS_ALL")
+
+        table: Dict[str, int] = getattr(limit, scope_kind)
+        if scope_name in table:
+            return table[scope_name]
+        return table.get("PBS_GENERIC")
+
+    def _get_pool(
+        self,
+        queue_limit: QueueLimit,
+        scope_kind: str,
+        scope_name: str,
+        limit_value: int,
+    ) -> conslib.SharedConsumableResource:
+        pool_key = (
+            queue_limit.source_attr,
+            scope_kind,
+            scope_name,
+            queue_limit.resource,
+        )
+        pool = self._pools.get(pool_key)
+        if pool is None:
+            usage = self._usage.get((scope_kind, scope_name, queue_limit.resource), 0)
+            remaining = max(0, limit_value - usage)
+            name = "__run_limit__{}__{}__{}__{}__{}".format(
+                self.queue_name,
+                queue_limit.source_attr,
+                scope_kind,
+                scope_name,
+                queue_limit.resource or "count",
+            )
+            source = "queue[{}].{}".format(self.queue_name, queue_limit.source_attr)
+            pool = conslib.SharedConsumableResource(name, source, remaining, remaining)
+            self._pools[pool_key] = pool
+        return pool
