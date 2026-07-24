@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from util import download_release_files
 
 SCALELIB_VERSION = "1.0.11"
-CYCLECLOUD_API_VERSION = "8.3.1"
+CYCLECLOUD_API_VERSION = "8.9.1"
 
 
 def build_sdist() -> str:
@@ -113,7 +113,7 @@ def execute() -> None:
         with open(path, "rb") as fr:
             tf.addfile(tarinfo, fr)
 
-    packages = []
+    packages = ["pip", "virtualenv"]
     for dep in cycle_packages:
         dep_path = os.path.abspath(os.path.join("blobs" if "cyclecloud_api" in dep else "libs", dep))
         _add("packages/" + dep, dep_path)

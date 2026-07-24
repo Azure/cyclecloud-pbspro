@@ -41,7 +41,7 @@ jobs:
           generate_release_notes: true
           files: |
             blobs/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.VERSION }}.tar.gz
-            blobs/cyclecloud_api-8.3.1-py2.py3-none-any.whl
+            blobs/cyclecloud_api-8.9.1-py2.py3-none-any.whl
             blobs/hwloc-libs-1.11.9-3.el8.x86_64.rpm
             blobs/openpbs-client-20.0.1-0.x86_64.rpm
             blobs/openpbs-client-22.05.11-0.x86_64.rpm

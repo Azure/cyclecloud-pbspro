@@ -53,30 +53,37 @@ echo INSTALL_PYTHON3=$INSTALL_PYTHON3
 echo INSTALL_VIRTUALENV=$INSTALL_VIRTUALENV
 echo VENV=$VENV
 
-# remove jetpack's python3 from the path
-export PATH=$(echo $PATH | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
-set +e
-which python3 > /dev/null;
-if [ $? != 0 ]; then
-    if [ $INSTALL_PYTHON3 == 1 ]; then
-        yum install -y python3 || exit 1
-    else
-        echo Please install python3 >&2;
-        exit 1
+
+find_python3() {
+    export PATH=$(echo $PATH | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
+    if [ ! -z $AZSLURM_PYTHON_PATH ]; then
+        echo $AZSLURM_PYTHON_PATH
+        return 0
     fi
-fi
+    for version in $( seq 11 20 ); do
+        which python3.$version
+        if [ $? == 0 ]; then
+            return 0
+        fi
+    done
+    echo Could not find python3 version 3.11 >&2
+    return 1
+}
+
 set -e
+PYTHON3=$(find_python3)
+$PYTHON3 -m ensurepip --default-pip
 
 if [ $INSTALL_VIRTUALENV == 1 ]; then
-    python3 -m pip install virtualenv
+    $PYTHON3 -m pip install virtualenv
 fi
 
 set +e
-python3 -m virtualenv --version 2>&1 > /dev/null
+$PYTHON3 -m virtualenv --version 2>&1 > /dev/null
 
 if [ $? != 0 ]; then
     if [ $INSTALL_VIRTUALENV ]; then
-        python3 -m pip install virtualenv || exit 1
+        $PYTHON3 -m pip install virtualenv || exit 1
     else
         echo Please install virtualenv for python3 >&2
         exit 1
@@ -84,7 +91,7 @@ if [ $? != 0 ]; then
 fi
 set -e
 
-python3 -m virtualenv $VENV
+$PYTHON3 -m virtualenv $VENV
 source $VENV/bin/activate
 # not sure why but pip gets confused installing frozendict locally
 # if you don't install it first. It has no dependencies so this is safe.
