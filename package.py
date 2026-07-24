@@ -119,7 +119,7 @@ def execute() -> None:
         _add("packages/" + dep, dep_path)
         packages.append(dep_path)
 
-    check_call(["pip", "download"] + packages, cwd=build_dir)
+    check_call([sys.executable, "-m", "pip", "download"] + packages, cwd=build_dir)
 
     print("Using build dir", build_dir)
     by_package: Dict[str, List[str]] = {}

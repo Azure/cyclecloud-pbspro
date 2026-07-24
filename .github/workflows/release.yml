@@ -10,16 +10,19 @@ jobs:
   build:
     name: Upload Release Asset
     runs-on: ubuntu-latest
+    container:
+      image: almalinux:8
     permissions:
       contents: write
     steps:
+      - name: Install build prerequisites
+        run: |
+          dnf update -y
+          dnf install -y python3.11 python3.11-pip git tar gzip which findutils
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build pkg
-        run: |
-          sudo apt update || apt update
-          sudo apt-get install -y python3 python3-pip || apt-get install -y python3 python3-pip
-          ./build.sh
+        run: ./build.sh
       - name: Get the version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
