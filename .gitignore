@@ -19,7 +19,11 @@ build
 **/*.db
 blobs/**
 dist/**
+**/dist/
 .env
 libs/**
 venv/**
 .testenv/
+.testvenv/
+.buildvenv/
+.target/
