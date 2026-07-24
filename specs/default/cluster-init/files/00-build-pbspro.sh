@@ -1,5 +1,5 @@
-#!/bin/bash -e
-
+#!/bin/bash
+set -e
 OPENPBS_VERSION="18.1.4"
 OPENPBS_FOLDER="pbspro-${OPENPBS_VERSION}"
 OPENPBS_PKG="pbspro-${OPENPBS_VERSION}.tar.gz"
