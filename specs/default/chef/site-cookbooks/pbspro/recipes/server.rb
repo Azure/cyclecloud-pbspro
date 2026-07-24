@@ -119,7 +119,6 @@ bash 'setup cyclecloud-pbspro' do
   
   ./generate_autoscale_json.sh --install-dir $INSTALLDIR \
                                 --username #{node[:cyclecloud][:config][:username]} \
-                                --password "#{node[:cyclecloud][:config][:password]}" \
                                 --url #{node[:cyclecloud][:config][:web_server]} \
                                 --cluster-name #{node[:cyclecloud][:cluster][:name]} \
                                 #{ignore_queues_arg}

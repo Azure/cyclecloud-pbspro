@@ -74,7 +74,12 @@ if [ "$1" == "-h" ]; then usage; fi
 if [ "$1" == "-help" ]; then usage; fi
 
 if [ "$USERNAME" == "" ]; then usage; fi
-if [ "$PASSWORD" == "" ]; then usage; fi
+set +x
+if [ "$PASSWORD" == "" ]; then
+    which jetpack > /dev/null 2>&1 || (echo "Please specify --password or ensure jetpack is in the path" && exit 1)
+    PASSWORD=$(jetpack config cyclecloud.config.password)
+fi
+set -x
 if [ "$URL" == "" ]; then usage; fi
 if [ "$CLUSTER_NAME" == "" ]; then usage; fi
 if [ "$INSTALLDIR" == "" ]; then usage; fi
@@ -88,6 +93,7 @@ if [ -e $INSTALLDIR/autoscale.json ]; then
     install -m 600 -o cyclecloud -g cyclecloud $INSTALLDIR/autoscale.json $backup_file
 fi
 
+set +x
 temp_autoscale=$TEMP/autoscale.json.$(date +%s)
 
 (azpbs initconfig --cluster-name ${CLUSTER_NAME} \
@@ -108,6 +114,6 @@ temp_autoscale=$TEMP/autoscale.json.$(date +%s)
                 --idle-timeout 300 \
                 --boot-timeout 3600 $IGNORE_QUEUES_ARG\
                 > $temp_autoscale && install -m 600 -o cyclecloud -g cyclecloud $temp_autoscale $INSTALLDIR/autoscale.json && rm -f $temp_autoscale ) || (rm -f $temp_autoscale; exit 1)
-
+set -x
 echo testing that we can connect to CycleCloud...
 azpbs connect && echo success! || (echo Please check the arguments passed in and try again && exit 1)
