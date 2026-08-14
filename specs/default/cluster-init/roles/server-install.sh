@@ -2,10 +2,6 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
-
-"${CYCLECLOUD_PROJECT_PATH}/default/scripts/hwlocs-install.sh" || fail
-
-PACKAGE_NAME=$(get_package_name "server") || fail
 CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
 CONNECTION_URL=$(jq -r .url "$CONFIG_PATH") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
@@ -13,6 +9,7 @@ IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro"
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz"
+PACKAGE_NAME=$(get_package_name "server") || fail
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
 
@@ -23,9 +20,6 @@ PBS_SCHEDULER_IP=$(hostname -i)
 
 EOF
 chmod a+r "/sched/${CLUSTER_NAME}/azpbs.env" || fail
-
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y -q "/tmp/$PACKAGE_NAME" || fail
 
 mkdir -p -m 0755 "$PBSPRO_AUTOSCALE_PROJECT_HOME" || fail
 
@@ -70,7 +64,7 @@ fi
 ./initialize_default_queues.sh || fail
 
 ./install.sh --install-python3 --venv "${INSTALLDIR}/venv" --cron-method "$CRON_METHOD" || fail
-
+#TODO: modify readme to get this
 ./generate_autoscale_json.sh --install-dir "$INSTALLDIR" \
                             --url "$CONNECTION_URL" \
                             --cluster-name "$CLUSTER_NAME" \

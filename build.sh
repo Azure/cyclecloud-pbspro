@@ -14,5 +14,4 @@ else
     source venv/bin/activate
 fi
 
-python package.py 
-
+python package.py
