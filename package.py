@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from util import download_release_files
 
 SCALELIB_VERSION = "1.0.11"
-CYCLECLOUD_API_VERSION = "8.3.1"
+CYCLECLOUD_API_VERSION = "8.10.0"
 
 
 def build_sdist() -> str:
@@ -39,7 +39,7 @@ def get_cycle_packages(args: Namespace) -> List[str]:
 
     scalelib_url = f"https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{SCALELIB_VERSION}.tar.gz"
 
-    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}"
+    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}" #TODO: ensure this is the correct url
     to_download = {
         scalelib_file: (args.scalelib, scalelib_url),
         cyclecloud_api_file: (args.cyclecloud_api, cyclecloud_api_url),

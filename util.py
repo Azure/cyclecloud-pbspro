@@ -10,7 +10,7 @@ RELEASE_URL = RELEASE_URL.rstrip("/") + "/"
 def download_release_files():
     blobs = get_blobs()
     for _, fname in enumerate(blobs):
-        if fname == "cyclecloud_api":
+        if "cyclecloud_api" in fname:
                 continue
     
         url = os.path.join(RELEASE_URL, fname)

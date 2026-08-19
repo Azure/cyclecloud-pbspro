@@ -56,27 +56,37 @@ echo VENV=$VENV
 # remove jetpack's python3 from the path
 export PATH=$(echo "$PATH" | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
 set +e
-which python3 > /dev/null;
+which python3.11 > /dev/null;
 if [ $? != 0 ]; then
     if [ $INSTALL_PYTHON3 == 1 ]; then
-        yum install -y -q python3 || exit 1
+        yum install -y -q python3.11 || exit 1
     else
-        echo Please install python3 >&2;
+        echo Please install python3.11 >&2;
+        exit 1
+    fi
+fi
+
+python3.11 -m pip --version > /dev/null 2>&1
+if [ $? != 0 ]; then
+    if [ $INSTALL_PYTHON3 == 1 ]; then
+        yum install -y -q python3.11-pip || exit 1
+    else
+        echo Please install pip for python3.11 >&2;
         exit 1
     fi
 fi
 set -e
 
 if [ $INSTALL_VIRTUALENV == 1 ]; then
-    python3 -m pip install -q virtualenv
+    python3.11 -m pip install -q virtualenv
 fi
 
 set +e
-python3 -m virtualenv --version 2>&1 > /dev/null
+python3.11 -m virtualenv --version 2>&1 > /dev/null
 
 if [ $? != 0 ]; then
     if [ $INSTALL_VIRTUALENV ]; then
-        python3 -m pip install -q virtualenv || exit 1
+        python3.11 -m pip install -q virtualenv || exit 1
     else
         echo Please install virtualenv for python3 >&2
         exit 1
@@ -84,7 +94,7 @@ if [ $? != 0 ]; then
 fi
 set -e
 
-python3 -m virtualenv $VENV
+python3.11 -m virtualenv $VENV
 source "${VENV}/bin/activate"
 # not sure why but pip gets confused installing frozendict locally
 # if you don't install it first. It has no dependencies so this is safe.
