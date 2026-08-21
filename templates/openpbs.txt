@@ -52,11 +52,13 @@ Autoscale = $Autoscale
         export_path = $NFSSharedExportPath
         address = $NFSAddress
         options = $NFSSharedMountOptions
+        export_name = server
 
         [[[configuration cyclecloud.mounts.nfs_sched]]]
         type = nfs
         mountpoint = /sched
         disabled = $NFSSchedDisable
+        export_name = server
 
         [[[configuration cyclecloud.mounts.additional_nfs]]]
         disabled = ${AdditionalNAS isnt true}
@@ -80,6 +82,7 @@ Autoscale = $Autoscale
         pbspro.cron_method = $AzpbsCronMethod
         pbspro.queues.workq.ignore = ${Autoscale != true}
         pbspro.queues.htcq.ignore = ${Autoscale != true}
+        pbspro.role = server
 
         [[[cluster-init cyclecloud/pbspro:server]]]
         
@@ -129,6 +132,7 @@ Autoscale = $Autoscale
 	
 	[[[configuration]]]
 	autoscale.enabled = false
+    pbspro.role = login
 
     [[nodearray execute]]
     MachineType = $ExecuteMachineType
@@ -145,6 +149,7 @@ Autoscale = $Autoscale
         # {"pbspro": {"ignore_queues": ["workq", "htcq"]}}
         # which is what pbspro.queues.workq.ignore does as well.
         # autoscale.enabled = $Autoscale
+        pbspro.role = execute
         
         [[[cluster-init cyclecloud/pbspro:execute]]]
 

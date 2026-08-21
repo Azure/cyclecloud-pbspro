@@ -3,8 +3,11 @@
 #
 import unittest
 import subprocess
+import jetpack
 
-    
+PBSPRO_ROLE = jetpack.config.get("pbspro.role", None)
+
+@unittest.skipUnless(PBSPRO_ROLE == "execute" or PBSPRO_ROLE == "login", "execute or login-only test")
 class TestExecute(unittest.TestCase):
 
     def test_simple(self):

@@ -19,6 +19,7 @@ jetpack.util.setup_logging()
 logger = logging.getLogger()
 
 CLUSTER_USER = props.get("cyclecloud.owner")
+PBSPRO_ROLE = jetpack.config.get("pbspro.role", None)
 
 
 def readfile_if_exist(filename):
@@ -47,7 +48,7 @@ sleep 3600
 
     return job_script
 
-
+@unittest.skipUnless(PBSPRO_ROLE == "server", "server-only test")
 class TestSubmit(unittest.TestCase):
 
     def setUp(self):
