@@ -14,7 +14,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build pkg
         run: |
           sudo apt update || apt update
@@ -35,7 +35,7 @@ jobs:
           echo "Version check passed: $TAG_VERSION"
 
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           prerelease: true
           generate_release_notes: true
