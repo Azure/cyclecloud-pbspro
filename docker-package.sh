@@ -77,7 +77,7 @@ fi
   delete_existing_blobs
   # allows caching
   $runtime build -t azpbs_build:latest -f util/Dockerfile .
-  $runtime run -v $(pwd):${local_azpbs} $runtime_args $extra_args -ti azpbs_build:latest /bin/bash ${local_azpbs}/util/build.sh $local_scalelib
+  $runtime run --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd):${local_azpbs}" $runtime_args $extra_args -ti azpbs_build:latest /bin/bash ${local_azpbs}/util/build.sh $local_scalelib
 } &> $log_file
 
 # Call the function to print the branch and the last commit
