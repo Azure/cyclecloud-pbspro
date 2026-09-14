@@ -1,6 +1,5 @@
 #!/bin/bash
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
-echo "im running activate hook"
 ROLE=$(jetpack config pbspro.role "") || fail
 
 case "$ROLE" in
