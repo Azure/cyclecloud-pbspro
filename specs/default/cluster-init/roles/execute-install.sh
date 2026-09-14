@@ -3,24 +3,20 @@
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
-PACKAGE_NAME=$(get_package_name "execution") || fail
-SERVER_HOSTNAME=$(get_server_hostname) || fail
+SERVER_IP_ADDRESS=$(jetpack config cyclecloud.mounts.nfs_sched.address "") || fail
 
 # Forces execute node's hostname to be updated (scalelib is blocked until the hostname is correct)
 # TODO: this installation status should be done by jetpack before cluster-inits are run
 "${CYCLECLOUD_HOME}/system/embedded/bin/python" -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
 
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y -q "/tmp/$PACKAGE_NAME" || fail
-
-if [[ -n "$SERVER_HOSTNAME" ]]; then
-    echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
+if [[ -n "$SERVER_IP_ADDRESS" ]]; then
+    echo "$SERVER_IP_ADDRESS" > /var/spool/pbs/server_name
     chmod 0644 /var/spool/pbs/server_name || fail
 
     cp "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/mom_config.template" /var/spool/pbs/mom_priv/config || fail
     chmod 0644 /var/spool/pbs/mom_priv/config || fail
 
-    sed -e "s|__SERVERNAME__|${SERVER_HOSTNAME}|g" \
+    sed -e "s|__SERVERNAME__|${SERVER_IP_ADDRESS}|g" \
         "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi

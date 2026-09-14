@@ -2,14 +2,11 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 
-PACKAGE_NAME=$(get_package_name "client") || fail
-SERVER_HOSTNAME=$(get_server_hostname) || fail
+SERVER_IP_ADDRESS=$(jetpack config cyclecloud.mounts.nfs_sched.address "") || fail
 
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y -q "/tmp/$PACKAGE_NAME" || fail
 
-if [[ -n "$SERVER_HOSTNAME" ]]; then
-    sed -e "s|__SERVERNAME__|${SERVER_HOSTNAME}|g" \
+if [[ -n "$SERVER_IP_ADDRESS" ]]; then
+    sed -e "s|__SERVERNAME__|${SERVER_IP_ADDRESS}|g" \
         "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi
