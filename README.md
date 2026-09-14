@@ -37,8 +37,6 @@ cd cyclecloud-pbspro
 
 # If you have jetpack available, you may use the following:
 # ./generate_autoscale_json.sh --install-dir /opt/cycle/pbspro \
-#                              --username $(jetpack config cyclecloud.config.username) \
-#                              --password $(jetpack config cyclecloud.config.password) \
 #                              --url $(jetpack config cyclecloud.config.web_server) \
 #                              --cluster-name $(jetpack config cyclecloud.cluster.name)
 
