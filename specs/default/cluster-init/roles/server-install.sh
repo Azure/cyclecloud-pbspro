@@ -2,7 +2,6 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
-echo "hi im the server node"
 CLUSTER_NAME=$(jq -r .cluster "$CONFIG_PATH") || fail
 CONNECTION_URL=$(jq -r .url "$CONFIG_PATH") || fail
 IGNORE_WORKQ=$(jetpack config pbspro.queues.workq.ignore "False") || fail
