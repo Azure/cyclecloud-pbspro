@@ -9,7 +9,17 @@ IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro"
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz"
+PACKAGE_NAME=$(get_package_name "server") || fail
 
+mkdir -p "/sched/${CLUSTER_NAME}" || fail
+
+cat << EOF > "/sched/${CLUSTER_NAME}/azpbs.env"
+#!/bin/bash
+PBS_SCHEDULER_HOSTNAME=$(hostname)
+PBS_SCHEDULER_IP=$(hostname -i)
+
+EOF
+chmod a+r "/sched/${CLUSTER_NAME}/azpbs.env" || fail
 
 mkdir -p -m 0755 "$PBSPRO_AUTOSCALE_PROJECT_HOME" || fail
 
