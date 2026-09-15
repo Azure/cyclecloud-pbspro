@@ -39,7 +39,7 @@ def get_cycle_packages(args: Namespace) -> List[str]:
 
     scalelib_url = f"https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{SCALELIB_VERSION}.tar.gz"
 
-    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}" #TODO: ensure this is the correct url
+    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2.0.26/{cyclecloud_api_file}"
     to_download = {
         scalelib_file: (args.scalelib, scalelib_url),
         cyclecloud_api_file: (args.cyclecloud_api, cyclecloud_api_url),
