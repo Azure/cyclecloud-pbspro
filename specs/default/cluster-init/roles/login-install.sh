@@ -2,11 +2,10 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 
-SERVER_IP_ADDRESS=$(jetpack config cyclecloud.mounts.nfs_sched.address "") || fail
+SERVER_HOSTNAME=$(get_server_hostname) || fail
 
-
-if [[ -n "$SERVER_IP_ADDRESS" ]]; then
-    sed -e "s|__SERVERNAME__|${SERVER_IP_ADDRESS}|g" \
+if [[ -n "$SERVER_HOSTNAME" ]]; then
+    sed -e "s|__SERVERNAME__|${SERVER_HOSTNAME}|g" \
         "${CYCLECLOUD_PROJECT_PATH}/default/templates/default/pbs.conf.template" > /etc/pbs.conf || fail
     chmod 0644 /etc/pbs.conf || fail
 fi
