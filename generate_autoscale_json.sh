@@ -28,7 +28,7 @@ CLUSTER_NAME=
 IGNORE_QUEUES_ARG=
 
 function usage() {
-    echo Usage: $0 --username username --password password --url https://fqdn:port --cluster-name cluster_name [--install-dir /opt/cycle/pbspro]
+    echo Usage: $0 --url https://fqdn:port --cluster-name cluster_name [--username username] [--password password] [--install-dir /opt/cycle/pbspro]
     exit 2
 }
 
@@ -73,7 +73,9 @@ done
 if [ "$1" == "-h" ]; then usage; fi
 if [ "$1" == "-help" ]; then usage; fi
 
+if [ "$USERNAME" == "" ]; then USERNAME=$(jetpack config cyclecloud.config.username); fi
 if [ "$USERNAME" == "" ]; then usage; fi
+if [ "$PASSWORD" == "" ]; then PASSWORD=$(jetpack config cyclecloud.config.password); fi
 if [ "$PASSWORD" == "" ]; then usage; fi
 if [ "$URL" == "" ]; then usage; fi
 if [ "$CLUSTER_NAME" == "" ]; then usage; fi
