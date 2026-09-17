@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 cd "$PROJECT_ROOT"
 
-"${PYTHON:-python3}" -m venv "$PROJECT_ROOT/.testenv"
+"${PYTHON:-python3}" -m venv --clear "$PROJECT_ROOT/.testenv"
 TEST_PYTHON="$PROJECT_ROOT/.testenv/bin/python"
 SCALELIB_VERSION=$("$TEST_PYTHON" -c 'from package import SCALELIB_VERSION; print(SCALELIB_VERSION)')
 API_VERSION=$("$TEST_PYTHON" -c 'from package import CYCLECLOUD_API_VERSION; print(CYCLECLOUD_API_VERSION)')
