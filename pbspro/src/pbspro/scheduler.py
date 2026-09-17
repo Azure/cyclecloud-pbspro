@@ -75,13 +75,17 @@ def read_schedulers(
     sched_dicts = pbscmd.qmgr_parsed("list", "sched")
     server_dicts = pbscmd.qmgr_parsed("list", "server")
 
-    server_dicts_by_host = partition_single(server_dicts, lambda s: s["server_host"])
+    # Use short hostname for server dict keys to handle both FQDN and short hostnames
+    server_dicts_by_host = partition_single(server_dicts, lambda s: s["server_host"].split(".")[0])
 
     ret: Dict[str, PBSProScheduler] = {}
 
     for sched_dict in sched_dicts:
         hostname = sched_dict["sched_host"]
-        server_dict = server_dicts_by_host[hostname]
+        # Use short hostname for lookup to handle cases where sched_host is FQDN 
+        # but server_host entries are short hostnames
+        short_hostname = hostname.split(".")[0]
+        server_dict = server_dicts_by_host[short_hostname]
 
         for key, value in server_dict.items():
             if key not in sched_dict:
