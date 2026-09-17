@@ -3,6 +3,7 @@
 # Licensed under the MIT License.
 #
 set -e
+source python-functions.sh
 if [ $(whoami) != root ]; then
   echo "Please run as root"
   exit 1
@@ -53,43 +54,28 @@ echo INSTALL_PYTHON3=$INSTALL_PYTHON3
 echo INSTALL_VIRTUALENV=$INSTALL_VIRTUALENV
 echo VENV=$VENV
 
-# remove jetpack's python3 from the path
-export PATH=$(echo "$PATH" | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
-set +e
-which python3 > /dev/null;
+# Find / install the system python3 version.
+# allow user to pick a different minimum Python version
+MINIMUM_VERSION=$(jetpack config pbspro.python3.minimum_version 3.11)
+PYTHON_PATH=$(find_python $MINIMUM_VERSION $INSTALL_PYTHON3)
 if [ $? != 0 ]; then
-    if [ $INSTALL_PYTHON3 == 1 ]; then
-        yum install -y -q python3 || exit 1
-    else
-        echo Please install python3 >&2;
-        exit 1
-    fi
-fi
-set -e
-
-if [ $INSTALL_VIRTUALENV == 1 ]; then
-    python3 -m pip install -q virtualenv
+    echo "Python $MINIMUM_VERSION not found and could not be installed" >&2
+    exit 1
 fi
 
-set +e
-python3 -m virtualenv --version 2>&1 > /dev/null
-
+# ensure that pip and virtualenv are installed
+ensure_pip_and_venv "$PYTHON_PATH" $INSTALL_VIRTUALENV 
 if [ $? != 0 ]; then
-    if [ $INSTALL_VIRTUALENV ]; then
-        python3 -m pip install -q virtualenv || exit 1
-    else
-        echo Please install virtualenv for python3 >&2
-        exit 1
-    fi
+    echo "Python $MINIMUM_VERSION could not be configured with virtualenv and pip" >&2
+    exit 1
 fi
-set -e
 
-python3 -m virtualenv $VENV
+# Create the venv, activate it and install packages.
+"$PYTHON_PATH" -m virtualenv "$VENV"
 source "${VENV}/bin/activate"
-# not sure why but pip gets confused installing frozendict locally
-# if you don't install it first. It has no dependencies so this is safe.
 pip install -q packages/*
 
+# create azpbs cli
 cat > "${VENV}/bin/azpbs" <<EOF
 #!$VENV/bin/python
 
@@ -100,13 +86,13 @@ chmod +x "${VENV}/bin/azpbs"
 
 azpbs -h 2>&1 > /dev/null || exit 1
 
-
 if [ ! -e /root/bin ]; then
     mkdir /root/bin
 fi
 
 ln -sf "${VENV}/bin/azpbs" /root/bin/
 
+# Install autoscale hook for pbs
 INSTALL_DIR=$(dirname "$VENV")
 
 echo Installing "autoscale" hook
@@ -136,6 +122,7 @@ else
 EOF
 fi
 
+# setup autocomplete for azpbs
 if [ -e /etc/profile.d ]; then
     cat > /etc/profile.d/azpbs_autocomplete.sh<<EOF
 which azpbs 2>/dev/null || export PATH=\$PATH:/root/bin

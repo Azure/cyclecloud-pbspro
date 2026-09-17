@@ -151,6 +151,7 @@ def execute() -> None:
         _add("packages/" + fil, path)
 
     _add("install.sh", mode=os.stat("install.sh")[0])
+    _add("python-functions.sh", mode=os.stat("python-functions.sh")[0])
     _add("initialize_pbs.sh", mode=os.stat("initialize_pbs.sh")[0])
     _add("initialize_default_queues.sh", mode=os.stat("initialize_default_queues.sh")[0])
     _add("generate_autoscale_json.sh", mode=os.stat("generate_autoscale_json.sh")[0])
