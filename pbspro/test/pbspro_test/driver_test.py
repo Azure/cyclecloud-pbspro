@@ -1,6 +1,7 @@
 import datetime
 import time
 from typing import Any, Dict
+from unittest.mock import Mock
 
 import pytest
 from hpc.autoscale.job.schedulernode import SchedulerNode
@@ -8,6 +9,7 @@ from hpc.autoscale.job.schedulernode import SchedulerNode
 from pbspro.constants import PBSProJobStates
 from pbspro.driver import PBSProDriver, parse_scheduler_node
 from pbspro.parser import PBSProParser, get_pbspro_parser, set_pbspro_parser
+from pbspro.pbscmd import PBSCMD
 from pbspro.resource import BooleanType, LongType, PBSProResourceDefinition, StringType
 
 
@@ -51,9 +53,10 @@ def test_parse_scheduler_node() -> None:
 def test_down_long_enough() -> None:
     node = SchedulerNode("localhost", {})
     now = datetime.datetime.now()
+    pbscmd = Mock(spec=PBSCMD)
 
     # False: missing last_state_change_time
-    driver = PBSProDriver({}, down_timeout=300)
+    driver = PBSProDriver({}, pbscmd=pbscmd, down_timeout=300)
     assert not driver._down_long_enough(now, node)
 
     # False: last_state_change_time < 300 seconds ago
@@ -69,6 +72,7 @@ def test_down_long_enough() -> None:
         last_state_change_time
     )
     assert driver._down_long_enough(now, node)
+    assert pbscmd.mock_calls == []
 
 
 def _pbs_job(
