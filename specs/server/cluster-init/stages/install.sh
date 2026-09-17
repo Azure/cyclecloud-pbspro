@@ -72,8 +72,6 @@ fi
 ./install.sh --install-python3 --venv "${INSTALLDIR}/venv" --cron-method "$CRON_METHOD" || fail
 
 ./generate_autoscale_json.sh --install-dir "$INSTALLDIR" \
-                            --username "$(jetpack config cyclecloud.config.username)" \
-                            --password "$(jetpack config cyclecloud.config.password)" \
                             --url "$CONNECTION_URL" \
                             --cluster-name "$CLUSTER_NAME" \
                             $IGNORE_QUEUES_ARG \
