@@ -11,8 +11,42 @@ from subprocess import check_call
 from typing import Dict, List, Optional
 from util import download_release_files
 
-SCALELIB_VERSION = "1.0.11"
-CYCLECLOUD_API_VERSION = "8.3.1"
+SCALELIB_VERSION = "1.0.12"
+
+
+def get_cyclecloud_api(override: Optional[str]) -> str:
+    if override:
+        if not os.path.isfile(override):
+            raise FileNotFoundError(override)
+        fname = os.path.basename(override)
+        dest = os.path.abspath(os.path.join("blobs", fname))
+        if os.path.abspath(override) != dest:
+            shutil.copyfile(override, dest)
+        return fname
+
+    archive_name = f"cyclecloud-scalelib-pkg-{SCALELIB_VERSION}.tar.gz"
+    url = f"https://github.com/Azure/cyclecloud-scalelib/releases/download/{SCALELIB_VERSION}/{archive_name}"
+    with tempfile.TemporaryDirectory() as download_dir:
+        archive_path = os.path.join(download_dir, archive_name)
+        check_call(["curl", "-L", "-s", "-f", "-o", archive_path, url])
+        with tarfile.open(archive_path, "r:gz") as archive:
+            wheels = {
+                member.name: member for member in archive.getmembers()
+                if member.isfile()
+                and os.path.dirname(member.name) == "cyclecloud-scalelib/packages"
+                and os.path.basename(member.name).startswith("cyclecloud_api-")
+                and member.name.endswith(".whl")
+            }
+            if len(wheels) != 1:
+                raise RuntimeError(
+                    f"Expected one CycleCloud API wheel in {archive_name}, found {len(wheels)}"
+                )
+            wheel = next(iter(wheels.values()))
+            fname = os.path.basename(wheel.name)
+            with archive.extractfile(wheel) as source:
+                with open(os.path.join("blobs", fname), "wb") as dest:
+                    shutil.copyfileobj(source, dest)
+    return fname
 
 
 def build_sdist() -> str:
@@ -35,14 +69,11 @@ def get_cycle_packages(args: Namespace) -> List[str]:
     ret = [build_sdist()]
 
     scalelib_file = "cyclecloud-scalelib-{}.tar.gz".format(SCALELIB_VERSION)
-    cyclecloud_api_file = f"cyclecloud_api-{CYCLECLOUD_API_VERSION}-py2.py3-none-any.whl"
 
     scalelib_url = f"https://github.com/Azure/cyclecloud-scalelib/archive/refs/tags/{SCALELIB_VERSION}.tar.gz"
 
-    cyclecloud_api_url = f"https://github.com/Azure/cyclecloud-pbspro/releases/download/2023-03-29-bins/{cyclecloud_api_file}"
     to_download = {
         scalelib_file: (args.scalelib, scalelib_url),
-        cyclecloud_api_file: (args.cyclecloud_api, cyclecloud_api_url),
     }
 
     for pkg_file in to_download:
@@ -53,17 +84,18 @@ def get_cycle_packages(args: Namespace) -> List[str]:
                 sys.exit(1)
             fname = os.path.basename(arg_override)
             orig = os.path.abspath(arg_override)
-            dest = os.path.abspath(os.path.join("blobs" if pkg_file == cyclecloud_api_file else "libs", fname))
+            dest = os.path.abspath(os.path.join("libs", fname))
             if orig != dest:
                 shutil.copyfile(orig, dest)
             ret.append(fname)
         else:
-            dest = os.path.join("blobs" if pkg_file == cyclecloud_api_file else "libs", pkg_file)
+            dest = os.path.join("libs", pkg_file)
             check_call(["curl", "-L", "-s", "-f", "-z", dest, "-o", dest, url])
 
             ret.append(pkg_file)
             print("Downloaded", pkg_file, "to", dest)
 
+    ret.append(get_cyclecloud_api(args.cyclecloud_api))
     return ret
 
 def execute() -> None:
@@ -126,8 +158,8 @@ def execute() -> None:
     for fil in os.listdir(build_dir):
         toks = fil.split("-", 1)
         package = toks[0]
-        if "pyyaml" in fil.lower():
-            print("Ignoring pyyaml as it is not needed and is platform specific")
+        if "charset_normalizer" in fil.lower() or fil.lower().startswith("pyyaml-"):
+            print("WARNING: removing {}".format(fil))
             os.remove(os.path.join(build_dir, fil))
             continue
         if "itsdangerous" in fil.lower():
