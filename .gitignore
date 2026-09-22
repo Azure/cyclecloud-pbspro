@@ -22,4 +22,5 @@ dist/**
 .env
 libs/**
 venv/**
+.build.log
 .testenv/
