@@ -1,47 +1,60 @@
 on:
+  workflow_dispatch:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-    - '2*' # Push events to matching v*, i.e. v1.0, v20.15.10
+    - '2*'
 
-name: Upload Release Asset
+name: Release
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    name: Upload Release Asset
+    name: Build release artifacts
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    container:
+      image: almalinux:8
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
     steps:
+      - name: Install build prerequisites
+        run: |
+          dnf update -y
+          dnf module enable -y nodejs:20
+          dnf install -y python3.11 python3.11-pip git tar gzip which findutils nodejs
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Build pkg
-        run: |
-          sudo apt update || apt update
-          sudo apt-get install -y python3 python3-pip || apt-get install -y python3 python3-pip
-          ./build.sh
-      - name: Get the version
+        run: ./build.sh
+      - name: Validate artifacts and get the version
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Assert tag matches project.ini version
         run: |
-          PROJECT_VERSION=$(grep -m1 '^version' project.ini | cut -d'=' -f2 | tr -d ' ')
-          TAG_VERSION="${{ steps.get_version.outputs.VERSION }}"
-          if [[ "$TAG_VERSION" != "$PROJECT_VERSION" ]]; then
-            echo "ERROR: tag '$TAG_VERSION' does not match project.ini version '$PROJECT_VERSION'"
-            exit 1
-          fi
-          echo "Version check passed: $TAG_VERSION"
+          python3.11 - <<'PY'
+          import configparser
+          import os
+          from pathlib import Path
 
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+          config = configparser.ConfigParser()
+          config.read('project.ini')
+          for name in config.get('blobs', 'Files').split(','):
+              artifact = Path('blobs') / name.strip()
+              if not artifact.is_file() or artifact.stat().st_size == 0:
+                  raise RuntimeError(f'Missing or empty release artifact: {artifact}')
+          wheels = list(Path('blobs').glob('cyclecloud_api-*.whl'))
+          if len(wheels) != 1 or wheels[0].stat().st_size == 0:
+              raise RuntimeError('Expected exactly one nonempty CycleCloud API wheel')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('VERSION=' + config.get('project', 'version') + '\n')
+          PY
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          prerelease: true
-          generate_release_notes: true
-          files: |
+          name: release-artifacts
+          if-no-files-found: error
+          path: |
             blobs/cyclecloud-pbspro-pkg-${{ steps.get_version.outputs.VERSION }}.tar.gz
-            blobs/cyclecloud_api-8.3.1-py2.py3-none-any.whl
+            blobs/cyclecloud_api-*.whl
             blobs/hwloc-libs-1.11.9-3.el8.x86_64.rpm
             blobs/openpbs-client-20.0.1-0.x86_64.rpm
             blobs/openpbs-client-22.05.11-0.x86_64.rpm
@@ -53,4 +66,36 @@ jobs:
             blobs/pbspro-debuginfo-18.1.4-0.x86_64.rpm
             blobs/pbspro-execution-18.1.4-0.x86_64.rpm
             blobs/pbspro-server-18.1.4-0.x86_64.rpm
+
+  publish:
+    name: Publish prerelease
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/2')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Assert tag matches project.ini version
+        env:
+          PROJECT_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG_VERSION" != "$PROJECT_VERSION" ]]; then
+            echo "ERROR: tag '$TAG_VERSION' does not match project.ini version '$PROJECT_VERSION'"
+            exit 1
+          fi
+          echo "Version check passed: $TAG_VERSION"
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-artifacts
+          path: blobs
+      - name: Create Release and Upload Assets
+        if: ${{ env.ACT != 'true' }}
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          prerelease: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: blobs/*
 
