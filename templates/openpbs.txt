@@ -80,6 +80,11 @@ Autoscale = $Autoscale
         pbspro.cron_method = $AzpbsCronMethod
         pbspro.queues.workq.ignore = ${Autoscale != true}
         pbspro.queues.htcq.ignore = ${Autoscale != true}
+        
+        # Example - you can set the pbspro.python_path explicitly
+        # It must be 3.11+. If virtualenv and pip are not installed, they
+        # will be installed automatically.
+        # pbspro.python_path = /path/to/bin/python
 
         [[[cluster-init cyclecloud/pbspro:server]]]
         
@@ -376,14 +381,14 @@ Order = 20
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
+        Config.Filter := Package in {"almalinux8"}
 
         [[[parameter ImageName]]]
         Label = Compute OS
         ParameterType = Cloud.Image
         Config.OS = linux
         DefaultValue = almalinux8
-        Config.Filter := Package in {"cycle.image.centos7", "almalinux8"}
+        Config.Filter := Package in {"almalinux8"}
 
         [[[parameter PBSVersion]]]
         Label = PBS Version

@@ -23,7 +23,7 @@ Note: When using the cluster that is shipped with CycleCloud, the autoscaler and
 First, download the installer pkg from GitHub. For example, you can download the [2.1.0 release here](https://github.com/Azure/cyclecloud-pbspro/releases/download/2.1.0/cyclecloud-pbspro-pkg-2.1.0.tar.gz)
 
 ```bash
-# Prerequisite: python3, 3.6 or newer, must be installed and in the PATH
+# Prerequisite: python3, 3.11 or newer, must be installed and in the PATH
 wget https://github.com/Azure/cyclecloud-pbspro/releases/download/2.1.0/cyclecloud-pbspro-pkg-2.1.0.tar.gz
 tar xzf cyclecloud-pbspro-pkg-2.1.0.tar.gz
 cd cyclecloud-pbspro
@@ -302,6 +302,9 @@ By default, `azpbs` will use `/opt/cycle/pbspro/logging.conf`, as defined in `/o
 ### /opt/cycle/pbspro/demand.log
 Every `autoscale` iteration, `azpbs` prints out a table of all of the nodes, their resources, their assigned jobs and more. This log
 contains these values and nothing else.
+
+### Using a custom python path
+As of `2.1.0` you can define `pbspro.python_path` to point to a python3.11+ binary. Note that for install.sh, you can also set $PBS_PYTHON_PATH to the same path.
 
 
 # Contributing
