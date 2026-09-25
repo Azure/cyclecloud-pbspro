@@ -5,9 +5,7 @@
 # Source this file, then call:
 #   find_python [min_version=3.11] [install_python=0] [ensure_pip_and_virtualenv=0] [custom_python_path]
 # e.g. find_python 3.11 1 1
-#      find_python 3.11 1 1 /bin/python3.11
-# Note that find_python 3.11 1 1 /bin/python3.9 would fail because it does not meet the minimum version requirement.
-# 
+#      find_python 3.11 1 1 /bin/python3.9
 # On success, sets PYTHON to the interpreter path and prints it to stdout.
 # On failure, prints an error to stderr and exits non-zero.
 
