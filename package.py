@@ -157,6 +157,7 @@ def execute() -> None:
     _add("server_dyn_res_wrapper.sh", mode=os.stat("server_dyn_res_wrapper.sh")[0])
     _add("autoscale_hook.py", "pbspro/conf/autoscale_hook.py")
     _add("logging.conf", "pbspro/conf/logging.conf")
+    _add("python-functions.sh", mode=os.stat("python-functions.sh")[0])
 
     print("Downloading release files...")
     download_release_files()

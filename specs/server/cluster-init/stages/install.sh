@@ -13,6 +13,8 @@ IGNORE_HTCQ=$(jetpack config pbspro.queues.htcq.ignore "False") || fail
 CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro"
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz"
+PBS_PYTHON_PATH=$(jetpack config pbspro.python_path "") || fail
+export PBS_PYTHON_PATH
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
 
@@ -69,7 +71,7 @@ fi
 
 ./initialize_default_queues.sh || fail
 
-./install.sh --install-python3 --venv "${INSTALLDIR}/venv" --cron-method "$CRON_METHOD" || fail
+./install.sh --install-python3 --install-venv --venv "${INSTALLDIR}/venv" --cron-method "$CRON_METHOD" || fail
 
 ./generate_autoscale_json.sh --install-dir "$INSTALLDIR" \
                             --username "$(jetpack config cyclecloud.config.username)" \

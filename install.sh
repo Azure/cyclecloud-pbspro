@@ -53,42 +53,13 @@ echo INSTALL_PYTHON3=$INSTALL_PYTHON3
 echo INSTALL_VIRTUALENV=$INSTALL_VIRTUALENV
 echo VENV=$VENV
 
-# remove jetpack's python3 from the path
-export PATH=$(echo "$PATH" | sed -e 's/\/opt\/cycle\/jetpack\/system\/embedded\/bin://g' | sed -e 's/:\/opt\/cycle\/jetpack\/system\/embedded\/bin//g')
-set +e
-which python3 > /dev/null;
-if [ $? != 0 ]; then
-    if [ $INSTALL_PYTHON3 == 1 ]; then
-        yum install -y -q python3 || exit 1
-    else
-        echo Please install python3 >&2;
-        exit 1
-    fi
-fi
-set -e
+source python-functions.sh
+PYTHON_EXEC=$(find_python 3.11 "$INSTALL_PYTHON3" "$INSTALL_VIRTUALENV" "$PBS_PYTHON_PATH")
 
-if [ $INSTALL_VIRTUALENV == 1 ]; then
-    python3 -m pip install -q virtualenv
-fi
-
-set +e
-python3 -m virtualenv --version 2>&1 > /dev/null
-
-if [ $? != 0 ]; then
-    if [ $INSTALL_VIRTUALENV ]; then
-        python3 -m pip install -q virtualenv || exit 1
-    else
-        echo Please install virtualenv for python3 >&2
-        exit 1
-    fi
-fi
-set -e
-
-python3 -m virtualenv $VENV
+"$PYTHON_EXEC" -m virtualenv $VENV
+unset PYTHON_EXEC
 source "${VENV}/bin/activate"
-# not sure why but pip gets confused installing frozendict locally
-# if you don't install it first. It has no dependencies so this is safe.
-pip install -q packages/*
+python3 -m  pip install -q packages/*
 
 cat > "${VENV}/bin/azpbs" <<EOF
 #!$VENV/bin/python
