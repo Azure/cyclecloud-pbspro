@@ -9,3 +9,7 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+    ignore:
+      # docker-package.sh runs release.yml under act, which cannot accept v5+ uploads (nektos/act#6022).
+      - dependency-name: "actions/upload-artifact"
+        versions: [">= 5"]
