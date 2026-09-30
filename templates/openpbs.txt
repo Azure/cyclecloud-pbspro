@@ -102,14 +102,14 @@ Autoscale = $Autoscale
         Size = $SchedFilesystemSize
         SSD = True
         Mount = builtinsched
-        Persistent = True #TODO: does this need to be true
+        Persistent = True
         Disabled = ${!UseBuiltinSched}
 
         [[[volume shared]]]
         Size = $FilesystemSize
         SSD = True
         Mount = builtinshared
-        Persistent = True #TODO: does this need to be true
+        Persistent = True
         Disabled = ${!UseBuiltinShared}
 
         [[[configuration cyclecloud.mounts.builtinsched]]]
