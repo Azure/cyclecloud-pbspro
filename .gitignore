@@ -27,3 +27,4 @@ venv/**
 .testvenv/
 .buildvenv/
 .target/
+.build.log

@@ -1,20 +1,14 @@
 #!/bin/bash
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || fail
-
-"${CYCLECLOUD_PROJECT_PATH}/default/scripts/hwlocs-install.sh" || fail
 
 EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
-PACKAGE_NAME=$(get_package_name "execution") || fail
 SERVER_HOSTNAME=$(get_server_hostname) || fail
+
 
 # Forces execute node's hostname to be updated (scalelib is blocked until the hostname is correct)
 # TODO: this installation status should be done by jetpack before cluster-inits are run
 "${CYCLECLOUD_HOME}/system/embedded/bin/python" -c "import jetpack.converge as jc; jc._send_installation_status('warning')"
-
-jetpack download --project pbspro "$PACKAGE_NAME" "/tmp" || fail
-yum install -y -q "/tmp/$PACKAGE_NAME" || fail
 
 if [[ -n "$SERVER_HOSTNAME" ]]; then
     echo "$SERVER_HOSTNAME" > /var/spool/pbs/server_name
