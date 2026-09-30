@@ -10,6 +10,8 @@ CRON_METHOD=$(jetpack config pbspro.cron_method "pbs_cron") || fail
 PBSPRO_AUTOSCALE_PROJECT_HOME="/opt/cycle/pbspro"
 PBSPRO_AUTOSCALE_INSTALLER="cyclecloud-pbspro-pkg-${PBSPRO_AUTOSCALE_VERSION}.tar.gz"
 PACKAGE_NAME=$(get_package_name "server") || fail
+PBS_PYTHON_PATH=$(jetpack config pbspro.python_path "") || fail
+export PBS_PYTHON_PATH
 
 mkdir -p "/sched/${CLUSTER_NAME}" || fail
 
