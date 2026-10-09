@@ -2,7 +2,7 @@
 
 source "${CYCLECLOUD_PROJECT_PATH}/default/files/utils.sh" || exit 1
 
-EXECUTE_HOSTNAME=$(jetpack config hostname) || fail
+EXECUTE_HOSTNAME=$(jetpack props get vm.hostname) || fail
 SERVER_HOSTNAME=$(get_server_hostname) || fail
 
 
