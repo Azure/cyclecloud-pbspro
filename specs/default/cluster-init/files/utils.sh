@@ -27,12 +27,12 @@ function get_package_name() {
     local package_type=$1 # Contains "server", "client", or "execution"
 
     if [[ -z "$package_name" ]]; then
-        local default_pbspro_version
-        default_pbspro_version=$(jetpack config pbspro.version "$PBSPRO_VERSION") || fail
-        if [[ "${default_pbspro_version%%.*}" -lt 20 ]]; then
-            echo "pbspro-${package_type}-${default_pbspro_version}.x86_64.rpm"
+        local pbspro_version
+        pbspro_version=$(jetpack config pbspro.version "$DEFAULT_PBSPRO_VERSION") || fail
+        if [[ "${pbspro_version%%.*}" -lt 20 ]]; then
+            echo "pbspro-${package_type}-${pbspro_version}.x86_64.rpm"
         else
-            echo "openpbs-${package_type}-${default_pbspro_version}.x86_64.rpm"
+            echo "openpbs-${package_type}-${pbspro_version}.x86_64.rpm"
         fi
     else
         echo "$package_name"
