@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "${CYCLECLOUD_PROJECT_PATH}/default/files/default.sh" || exit 1
+source "${CYCLECLOUD_PROJECT_PATH}/default/files/constants.sh" || exit 1
 
 function fail() {
     local errorMsg="$1"
@@ -27,10 +27,12 @@ function get_package_name() {
     local package_type=$1 # Contains "server", "client", or "execution"
 
     if [[ -z "$package_name" ]]; then
-        if [[ "${PBSPRO_VERSION%%.*}" -lt 20 ]]; then
-            echo "pbspro-${package_type}-${PBSPRO_VERSION}.x86_64.rpm"
+        local pbspro_version
+        pbspro_version=$(jetpack config pbspro.version "$DEFAULT_PBSPRO_VERSION") || fail
+        if [[ "${pbspro_version%%.*}" -lt 20 ]]; then
+            echo "pbspro-${package_type}-${pbspro_version}.x86_64.rpm"
         else
-            echo "openpbs-${package_type}-${PBSPRO_VERSION}.x86_64.rpm"
+            echo "openpbs-${package_type}-${pbspro_version}.x86_64.rpm"
         fi
     else
         echo "$package_name"
