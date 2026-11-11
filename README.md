@@ -16,6 +16,32 @@ in CycleCloud by specifying the PBSPro OSS version.
    pbspro.version = 18.1.4-0
 ```
 
+## Altair PBS Professional (BYOL)
+
+Use [templates/altairpbs.txt](templates/altairpbs.txt) for commercial Altair PBS
+Professional with your own licenses and an existing Altair License Manager server.
+
+1. Point a copy of the template at your project version, then import it:
+
+   ```bash
+   cp templates/altairpbs.txt templates/altairpbs-test.txt
+   sed -i -e 's/\(\[*cluster-init[^]]*\)\]/\1:RELEASE_VERSION]/' -e 's/cyclecloud\/pbspro/pbspro/g' templates/altairpbs-test.txt
+   cyclecloud import_template -f templates/altairpbs-test.txt "Altair PBS Professional"
+   ```
+
+   Replace `RELEASE_VERSION` with your project version, for example `2.1.0`.
+
+2. Create a cluster in CycleCloud. Select **PBS Version** under
+   **Advanced Settings / Software**, and enter **License Server** under
+   **Required Settings** as `port@hostname`, for example `6200@licenses.example.com`.
+   The license server must be reachable from the PBS server.
+
+After deployment, check licensing on the PBS server:
+
+```bash
+/opt/pbs/bin/qstat -Bf | grep -E 'pbs_license_info|license_count'
+```
+
 ## Installing Manually
 
 Note: When using the cluster that is shipped with CycleCloud, the autoscaler and default queues are already installed.

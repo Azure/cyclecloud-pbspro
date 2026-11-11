@@ -23,17 +23,20 @@ function bool() {
 }
 
 function get_package_name() {
-    local package_name=$(jetpack config pbspro.package "") || fail
+    local package_name
+    package_name=$(jetpack config pbspro.package "") || fail
     local package_type=$1 # Contains "server", "client", or "execution"
 
     if [[ -z "$package_name" ]]; then
-        local pbspro_version
+        local pbspro_version pbspro_edition package_prefix
         pbspro_version=$(jetpack config pbspro.version "$DEFAULT_PBSPRO_VERSION") || fail
-        if [[ "${pbspro_version%%.*}" -lt 20 ]]; then
-            echo "pbspro-${package_type}-${pbspro_version}.x86_64.rpm"
+        pbspro_edition=$(jetpack config pbspro.edition "openpbs") || fail
+        if [[ "$pbspro_edition" == "altair" ]]; then
+            package_prefix="pbspro"
         else
-            echo "openpbs-${package_type}-${pbspro_version}.x86_64.rpm"
+            package_prefix="openpbs"
         fi
+        echo "${package_prefix}-${package_type}-${pbspro_version}.x86_64.rpm"
     else
         echo "$package_name"
     fi
@@ -68,4 +71,20 @@ function get_server_hostname() {
     else
         echo "$server_hostname"
     fi
+}
+
+function configure_pbs_license() {
+    local license_server
+    license_server=$(jetpack config pbspro.license_server "") || fail
+    [[ -n "$license_server" ]] || return 0
+
+    if [[ ! "$license_server" =~ ^[1-9][0-9]{0,4}@[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]]; then
+        fail "pbspro.license_server must be port@hostname, for example 6200@licenses.example.com"
+    fi
+    if (( ${license_server%%@*} > 65535 )); then
+        fail "pbspro.license_server port must be between 1 and 65535"
+    fi
+
+    /opt/pbs/bin/qmgr -c "set server pbs_license_info = ${license_server}" \
+        || fail "Failed to configure the Altair PBS license server"
 }

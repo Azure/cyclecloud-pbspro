@@ -1,0 +1,580 @@
+
+################################
+## Cluster Configuration File ##
+################################
+
+[cluster Altair PBS Professional]
+FormLayout = selectionpanel
+Category = Schedulers
+IconUrl = /static/cloud/cluster/ui/ClusterIcon/altair-icon.png
+
+Autoscale = $Autoscale
+
+    [[node defaults]]
+    UsePublicNetwork = $UsePublicNetwork
+    Credentials = $Credentials    
+    ImageName = $ImageName
+    SubnetId = $SubnetId
+    Region = $Region
+    KeyPairLocation = ~/.ssh/cyclecloud.pem
+    Azure.Identities = $ManagedIdentity
+
+    # Lustre mounts require termination notifications to unmount
+    EnableTerminateNotification = ${NFSType == "lustre" || NFSSchedType == "lustre" || AdditionalNFSType == "lustre" || EnableTerminateNotification}
+    TerminateNotificationTimeout = 10m
+    
+        [[[configuration]]]
+        pbspro.edition = altair
+        pbspro.version = $PBSVersion
+        # For fast spin-up after Deallocate, force an immediate re-converge on boot
+        cyclecloud.converge_on_boot = true
+
+        cyclecloud.enable_chef = false
+
+        # Disable normal NFS exports and mounts
+        cyclecloud.mounts.sched.disabled = true
+        cyclecloud.mounts.shared.disabled = true
+        cyclecloud.exports.sched.disabled = true
+        cyclecloud.exports.shared.disabled = true
+        cyclecloud.exports.sched.samba.enabled = false
+        cyclecloud.exports.shared.samba.enabled = false
+        cyclecloud.exports.defaults.samba.enabled = false      
+        cshared.server.legacy_links_disabled = true
+
+        # May be used to identify the ID in cluster-init scripts
+        cluster.identities.default = $ManagedIdentity
+	
+        [[[cluster-init cyclecloud/pbspro:default]]]
+        Optional = false
+
+
+        [[[volume boot]]]
+        Size = ${ifThenElse(BootDiskSize > 0, BootDiskSize, undefined)}
+        SSD = True
+
+        [[[configuration cyclecloud.mounts.nfs_shared]]]
+        type = $NFSType
+        mountpoint = /shared
+        export_path = ${ifThenElse(NFSType == "lustre", strcat("tcp:/lustrefs", NFSSharedExportPath), NFSSharedExportPath)}
+        address = $NFSAddress
+        options = $NFSSharedMountOptions
+
+        [[[configuration cyclecloud.mounts.nfs_sched]]]
+        type = $NFSSchedType
+        mountpoint = /sched
+        export_path = ${ifThenElse(NFSSchedType == "lustre", strcat("tcp:/lustrefs", NFSSchedExportPath), NFSSchedExportPath)}
+        address = $NFSSchedAddress
+        options = $NFSSchedMountOptions
+
+        [[[configuration cyclecloud.mounts.additional_nfs]]]
+        disabled = ${AdditionalNFS isnt true}
+        type = $AdditionalNFSType
+        address = $AdditionalNFSAddress
+        mountpoint = $AdditionalNFSMountPoint
+        export_path = ${ifThenElse(AdditionalNFSType == "lustre", strcat("tcp:/lustrefs", AdditionalNFSExportPath), AdditionalNFSExportPath)}
+        options = $AdditionalNFSMountOptions
+
+
+    [[node server]]
+    ImageName = $SchedulerImageName
+    MachineType = $serverMachineType
+    IsReturnProxy = $ReturnProxy
+    AdditionalClusterInitSpecs = $serverClusterInitSpecs
+    
+        [[[configuration]]]
+        cyclecloud.discoverable=true
+        cyclecloud.mounts.nfs_sched.disabled = $UseBuiltinSched
+        cyclecloud.mounts.nfs_shared.disabled = $UseBuiltinShared
+        pbspro.cron_method = $AzpbsCronMethod
+        pbspro.queues.workq.ignore = ${Autoscale != true}
+        pbspro.queues.htcq.ignore = ${Autoscale != true}
+        pbspro.role = server
+        pbspro.license_server = $PBSLicenseServer
+
+        # Example - you can set the pbspro.python_path explicitly
+        # It must be 3.11+. If virtualenv and pip are not installed, they
+        # will be installed automatically.
+        # pbspro.python_path = /path/to/bin/python
+
+        [[[cluster-init cyclecloud/pbspro:server]]]
+        
+        [[[network-interface eth0]]]
+        AssociatePublicIpAddress = $UsePublicNetwork
+
+        [[[volume sched]]]
+        Size = $SchedFilesystemSize
+        SSD = True
+        Mount = builtinsched
+        Persistent = True
+        Disabled = ${!UseBuiltinSched}
+
+        [[[volume shared]]]
+        Size = $FilesystemSize
+        SSD = True
+        Mount = builtinshared
+        Persistent = True
+        Disabled = ${!UseBuiltinShared}
+
+        [[[configuration cyclecloud.mounts.builtinsched]]]
+        disabled = ${!UseBuiltinSched}
+        mountpoint = /sched
+        fs_type = xfs
+
+        [[[configuration cyclecloud.mounts.builtinshared]]]
+        disabled = ${!UseBuiltinShared}
+        mountpoint = /shared
+        fs_type = xfs
+
+        [[[configuration cyclecloud.exports.builtinsched]]]
+        disabled = ${!UseBuiltinSched}
+        export_path = /sched
+        options = no_root_squash
+        samba.enabled = false
+        type = nfs
+
+        [[[configuration cyclecloud.exports.builtinshared]]]
+        disabled = ${!UseBuiltinShared}
+        export_path = /shared
+        samba.enabled = false
+        type = nfs
+
+
+
+    [[nodearray login]]
+    InitialCount = $NumberLoginNodes
+    MachineType = $serverMachineType
+        
+	[[[cluster-init cyclecloud/pbspro:login]]]
+	
+	[[[configuration]]]
+	autoscale.enabled = false
+    pbspro.role = login
+
+    [[nodearray execute]]
+    MachineType = $ExecuteMachineType
+    MaxCoreCount = $MaxExecuteCoreCount
+
+    Interruptible = $UseLowPrio
+    AdditionalClusterInitSpecs = $ExecuteClusterInitSpecs
+    EnableNodeHealthChecks = $EnableNodeHealthChecks
+
+
+        [[[configuration]]]
+        # setting this completely disables the autoscaler from adding nodes to the cluster
+        # even manually created nodes. Instead, you can add this to your autoscale.json 
+        # {"pbspro": {"ignore_queues": ["workq", "htcq"]}}
+        # which is what pbspro.queues.workq.ignore does as well.
+        # autoscale.enabled = $Autoscale
+        pbspro.role = execute
+        
+        [[[cluster-init cyclecloud/pbspro:execute]]]
+
+        [[[network-interface eth0]]]
+        AssociatePublicIpAddress = $ExecuteNodesPublic
+
+
+[parameters About]
+Order = 1
+
+    [[parameters About Altair PBS Professional]]
+
+        [[[parameter pbspro]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = '''<table role="presentation">
+            <tr><td><img width="512" alt="Altair logo" src="static/cloud/cluster/ui/ClusterIcon/altair.png"></td></tr>
+            <tr><td><h2>Altair PBS Professional</h2>
+                <p>Deploy Altair PBS Professional with Azure CycleCloud autoscaling.</p>
+                <p>This template requires your own Altair PBS Professional license.
+                Contact Altair for licensing information.</p>
+                <p><a href="https://altair.com/pbs-professional" target="_blank">Product information</a> |
+                <a href="https://altair.com/contact-us" target="_blank">Contact Altair</a></p>
+            </td></tr></table>'''
+
+[parameters Required Settings]
+Order = 10
+
+    [[parameters Altair PBS Professional]]
+    Description = "Configure your Altair PBS Professional license server."
+    Order = 10
+
+        [[[parameter PBSLicenseServer]]]
+        Label = License Server
+        Description = Existing license server as port@hostname, for example 6200@licenses.example.com.
+        ParameterType = String
+        Required = true
+
+    [[parameters Virtual Machines ]]
+    Description = "The cluster, in this case, has two roles: the scheduler server-node with shared filer and the execute hosts. Configure which VM types to use based on the requirements of your application."
+    Order = 20
+
+        [[[parameter Region]]]
+        Label = Region
+        Description = Deployment Location
+        ParameterType = Cloud.Region
+
+        [[[parameter serverMachineType]]]
+        Label = Server VM Type
+        Description = The VM type for scheduler server and shared filer.
+        ParameterType = Cloud.MachineType
+        DefaultValue = Standard_D8as_v4
+
+        [[[parameter ExecuteMachineType]]]
+        Label = Execute VM Type
+        Description = The VM type for execute nodes
+        ParameterType = Cloud.MachineType
+        DefaultValue = Standard_F2s_v2
+        Config.Multiselect = true
+
+
+    [[parameters Auto-Scaling]]
+    Description = "The cluster can autoscale to the workload, adding execute hosts as jobs are queued. To enable this, check the box below and choose the initial and maximum core counts for the cluster."
+    Order = 30
+
+        [[[parameter Autoscale]]]
+        Label = Autoscale
+        DefaultValue = true
+        Widget.Plugin = pico.form.BooleanCheckBox
+        Widget.Label = Start instances automatically. Shutdown is determined by Keep Alive.
+
+        [[[parameter AzpbsCronMethod]]]
+        Label = Cron Method
+        DefaultValue = cron
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="Cron"; Value="cron"], [Label="PBS Timer Hook"; Value="pbs_hook"]}
+        Config.Options = cron,pbs_hook
+        Description = "The method used to run the azpbs cron job.  Cron is the default and will run the azpbs cron job 15 seconds.  The pbs_hook method will do the same but use PBS built-in timer."
+
+        [[[parameter MaxExecuteCoreCount]]]
+        Label = Max Cores
+        Description = The total number of execute cores to start
+        DefaultValue = 100
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 1
+        Config.IntegerOnly = true
+
+        [[[parameter UseLowPrio]]]
+        Label = Low Priority
+        DefaultValue = false
+        Widget.Plugin = pico.form.BooleanCheckBox
+        Widget.Label = Use low priority instances for execute hosts
+
+    [[parameters Networking]]
+    Order = 40
+
+        [[[parameter SubnetId]]]
+        Label = Subnet ID
+        Description = Subnet Resource Path (ResourceGroup/VirtualNetwork/Subnet)
+        ParameterType = Azure.Subnet
+        Required = True
+
+[parameters Network Attached Storage]
+Order = 15
+
+    [[parameters Shared Storage]]
+    Order = 10
+
+        [[[parameter About Shared Storage]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = '''<p>The directories <code>/sched</code> and <code>/shared</code> are network attached mounts and exist on all nodes of the cluster.<br>
+            <br>
+            Options for providing these mounts:<br>
+            <strong>[Builtin]</strong>: The server node is an NFS server that provides the mountpoint to the other nodes of the cluster.<br>
+            <strong>[External NFS]</strong>: A network attached storage such as Azure Netapp Files, HPC Cache, or another VM running an NFS server provides the mountpoint.<br>
+            <strong>[Azure Managed Lustre]</strong>: An Azure Managed Lustre deployment provides the mountpoint.<br>
+        </p>
+        <p>Note: the cluster must be terminated for changes to filesystem mounts to take effect.</p>'''
+        Conditions.Hidden := false
+
+    [[parameters Scheduler Mount]]
+    Order = 20
+    Label = File-system Mount for /sched
+
+        [[[parameter About sched]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = ''' <p>Altair PBS Professional configuration shared with cluster nodes is stored in the <code>/sched</code> directory. It is managed by the server node.</p>'''
+        Order = 6
+
+        [[[parameter About sched part 2]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = ''' <p>Uncheck the box below to disable the built-in NFS export of the <code>/sched</code> directory and use an external file-system.</p>'''
+        Order = 7
+
+        [[[parameter UseBuiltinSched]]]
+        Label = Use Builtin NFS
+        Description = Use the builtin NFS for /sched
+        DefaultValue = true
+        ParameterType = Boolean
+
+        [[[parameter NFSSchedDiskWarning]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template := "<p><b>Warning</b>: switching an active cluster over to NFS or Lustre from Builtin will delete the shared disk.</p>"
+        Conditions.Hidden := UseBuiltinSched
+
+        [[[parameter NFSSchedType]]]
+        Label = FS Type
+        ParameterType = StringList
+        Config.Label = Type of shared filesystem to use for this cluster
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="External NFS"; Value="nfs"], [Label="Azure Managed Lustre"; Value="lustre"]}
+        DefaultValue = nfs
+        Conditions.Hidden := UseBuiltinSched
+
+        [[[parameter NFSSchedAddress]]]
+        Label = IP Address
+        Description = The IP address or hostname of the NFS server or Lustre FS. Also accepts a list of comma-separated addresses, for example, to mount a frontend load-balanced Azure HPC Cache.
+        Config.ParameterType = String
+        Conditions.Hidden := UseBuiltinSched
+
+        [[[parameter NFSSchedExportPath]]]
+        Label = Export Path
+        Description = The path exported by the file system
+        DefaultValue = /sched
+        Conditions.Hidden := UseBuiltinSched
+
+        [[[parameter NFSSchedMountOptions]]]
+        Label = Mount Options
+        Description = File System Client Mount Options
+        Conditions.Hidden := UseBuiltinSched
+
+        [[[parameter SchedFilesystemSize]]]
+        Label = Size (GB)
+        Description = The filesystem size (cannot be changed after initial start)
+        DefaultValue = 1024
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 10
+        Config.MaxValue = 10240
+        Config.IntegerOnly = true
+        Conditions.Excluded := !UseBuiltinSched
+
+    [[parameters Default NFS Share]]
+    Order = 30
+    Label = File-system Mount for /shared
+
+        [[[parameter About shared]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = ''' <p>Users' home directories reside within the <code>/shared</code> mountpoint with the base homedir <code>/shared/home</code>.</p>'''
+        Order = 6
+
+        [[[parameter About shared part 2]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template = ''' <p>Uncheck the box below to disable the built-in NFS export of the <code>/shared</code> directory and use an external file-system.</p>'''
+        Order = 7
+
+        [[[parameter UseBuiltinShared]]]
+        Label = Use Builtin NFS
+        Description = Use the builtin NFS for /shared
+        DefaultValue = true
+        ParameterType = Boolean
+
+	[[[parameter NFSDiskWarning]]]
+	HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template := "<p><b>Warning</b>: switching an active cluster over to NFS or Lustre from Builtin will delete the shared disk.</p>"
+        Conditions.Hidden := UseBuiltinShared
+
+        [[[parameter NFSType]]]
+        Label = FS Type
+        ParameterType = StringList
+        Config.Label = Type of shared filesystem to use for this cluster
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="External NFS"; Value="nfs"], [Label="Azure Managed Lustre"; Value="lustre"]}
+        DefaultValue = nfs
+        Conditions.Hidden := UseBuiltinShared
+
+        [[[parameter NFSAddress]]]
+        Label = IP Address
+        Description = The IP address or hostname of the NFS server or Lustre FS. Also accepts a list of comma-separated addresses, for example, to mount a frontend load-balanced Azure HPC Cache.
+        Config.ParameterType = String
+        Conditions.Hidden := UseBuiltinShared
+
+        [[[parameter NFSSharedExportPath]]]
+        Label = Export Path
+        Description = The path exported by the file system
+        DefaultValue = /shared
+        Conditions.Hidden := UseBuiltinShared
+
+        [[[parameter NFSSharedMountOptions]]]
+        Label = Mount Options
+        Description = File system client mount options
+        Conditions.Hidden := UseBuiltinShared
+
+        [[[parameter FilesystemSize]]]
+        Label = Size (GB)
+        Description = The filesystem size (cannot be changed after initial start)
+        DefaultValue = 100
+
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 10
+        Config.MaxValue = 10240
+        Config.IntegerOnly = true
+        Conditions.Excluded := !UseBuiltinShared
+
+    [[parameters Additional NFS Mount]]
+    Order = 40
+    Label = Additional Filesystem Mount
+
+        [[[parameter Additional Shared FS Mount Readme]]]
+        HideLabel = true
+        Config.Plugin = pico.widget.HtmlTemplateWidget
+        Config.Template := "<p>Mount another shared file-system endpoint on the cluster nodes.</p>"
+        Order = 20
+
+        [[[parameter AdditionalNFS]]]
+        HideLabel = true
+        DefaultValue = false
+        Widget.Plugin = pico.form.BooleanCheckBox
+        Widget.Label = Add Shared Filesystem mount
+
+        [[[parameter AdditionalNFSType]]]
+        Label = FS Type
+        ParameterType = StringList
+        Config.Label = Shared filesystem type of the additional mount
+        Config.Plugin = pico.form.Dropdown
+
+        Config.Entries := {[Label="External NFS"; Value="nfs"], [Label="Azure Managed Lustre"; Value="lustre"]}
+        DefaultValue = nfs
+        Conditions.Excluded := AdditionalNFS isnt true
+
+        [[[parameter AdditionalNFSAddress]]]
+        Label = IP Address
+        Description = The IP address or hostname of the additional mount. Also accepts a list of comma-separated addresses, for example, to mount a frontend load-balanced Azure HPC Cache.
+        Config.ParameterType = String
+        Conditions.Excluded := AdditionalNFS isnt true
+
+        [[[parameter AdditionalNFSMountPoint]]]
+        Label = Mount Point
+        Description = The path at which to mount the Filesystem
+        DefaultValue = /data
+        Conditions.Excluded := AdditionalNFS isnt true
+
+        [[[parameter AdditionalNFSExportPath]]]
+        Label = Export Path
+        Description = The path exported by the file system
+        DefaultValue = /data
+        Conditions.Excluded := AdditionalNFS isnt true
+
+        [[[parameter AdditionalNFSMountOptions]]]
+        Label = Mount Options
+        Description = Filesystem Client Mount Options
+        Conditions.Excluded := AdditionalNFS isnt true
+    
+
+
+[parameters Advanced Settings]
+Order = 20
+
+    [[parameters Azure Settings]]
+    Order = 10 
+
+        [[[parameter Credentials]]]
+        Description = The credentials for the cloud provider
+        ParameterType = Cloud.Credentials
+
+        [[[parameter ManagedIdentity]]]
+        Label = Managed Id
+        Description = Optionally assign an Azure user assigned managed identity to all nodes to access Azure resources using assigned roles.
+        ParameterType = Azure.ManagedIdentity
+        DefaultValue = =undefined
+
+        [[[parameter BootDiskSize]]]
+        Description = Optional: Size of the OS/boot disk in GB for all nodes in the cluster (leave at 0 to use Image size)
+        ParameterType = Integer
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 0
+        Config.MaxValue = 32,000
+        Config.IntegerOnly = true
+        Config.Increment = 64
+        DefaultValue = 0
+
+        [[[parameter EnableTerminateNotification]]]
+        Label = Enable Termination notifications
+        DefaultValue = False
+
+
+
+    [[parameters Software]]
+    Description = "Specify the scheduling software, and base OS installed on all nodes, and optionally the cluster-init and chef versions from your locker."
+    Order = 10
+
+
+        [[[parameter SchedulerImageName]]]
+        Label = Scheduler OS
+        ParameterType = Cloud.Image
+        Config.OS = linux
+        DefaultValue = almalinux8
+        Config.Filter := Package in {"almalinux8"}
+
+        [[[parameter ImageName]]]
+        Label = Compute OS
+        ParameterType = Cloud.Image
+        Config.OS = linux
+        DefaultValue = almalinux8
+        Config.Filter := Package in {"almalinux8"}
+
+        [[[parameter PBSVersion]]]
+        Label = PBS Version
+        Description = Select the Altair PBS Professional version.
+        Config.Plugin = pico.form.Dropdown
+        Config.Entries := {[Label="Altair PBS Professional 2022.1.3, el8-only"; Value="2022.1.3.20230614134139-0.el8"], [Label="Altair PBS Professional 2021.1.1, el8-only"; Value="2021.1.1.20210518090504-0.el8"]}
+        DefaultValue = 2022.1.3.20230614134139-0.el8
+        Required = true
+
+        [[[parameter serverClusterInitSpecs]]]
+        Label = Server Cluster-Init
+        DefaultValue = =undefined
+        Description = Cluster init specs to apply to the server node
+        ParameterType = Cloud.ClusterInitSpecs
+    
+        [[[parameter ExecuteClusterInitSpecs]]]
+        Label = Execute Cluster-Init
+        DefaultValue = =undefined
+        Description = Cluster init specs to apply to execute nodes
+        ParameterType = Cloud.ClusterInitSpecs
+
+        [[[parameter NumberLoginNodes]]]
+        Label = Num Login Nodes
+        DefaultValue = 0
+        Description = Number of optional login nodes to create.
+        Config.Plugin = pico.form.NumberTextBox
+        Config.MinValue = 0
+        Config.MaxValue = 10000
+        Config.IntegerOnly = true
+	
+
+    [[parameters Advanced Networking]]
+
+        [[[parameter ReturnProxy]]]
+        Label = Return Proxy
+        DefaultValue = true
+        ParameterType = Boolean
+        Config.Label = Use SSH tunnel to connect to CycleCloud (required if direct access is blocked)
+
+        [[[parameter UsePublicNetwork]]]
+        Label = Public Head Node
+        DefaultValue = false
+        ParameterType = Boolean
+        Config.Label = Access server node from the Internet
+
+        [[[parameter ExecuteNodesPublic]]]
+        Label = Public Execute
+        DefaultValue = false
+        ParameterType = Boolean
+        Config.Label = Access execute nodes from the Internet
+        Conditions.Excluded := UsePublicNetwork isnt true
+
+    [[parameters Node Health Checks]]
+        Description = "Section for configuring Node Health Checks"
+        Order = 12
+
+            [[[parameter EnableNodeHealthChecks]]]
+            Label = Enable NHC tests
+            DefaultValue = false
+            Widget.Plugin = pico.form.BooleanCheckBox
+            Widget.Label = Run Node Health Checks on startup
