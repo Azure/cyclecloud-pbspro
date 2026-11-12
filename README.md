@@ -21,7 +21,11 @@ in CycleCloud by specifying the PBSPro OSS version.
 Use [templates/altairpbs.txt](templates/altairpbs.txt) for commercial Altair PBS
 Professional with your own licenses and an existing Altair License Manager server.
 
-1. Point a copy of the template at your project version, then import it:
+1. Upload the commercial PBS server, execution, and client RPMs for your selected
+   version to your CycleCloud locker under `pbspro/blobs/`. These are not included
+   in this project's public releases.
+
+2. Point a copy of the template at your project version, then import it:
 
    ```bash
    cp templates/altairpbs.txt templates/altairpbs-test.txt
@@ -31,7 +35,7 @@ Professional with your own licenses and an existing Altair License Manager serve
 
    Replace `RELEASE_VERSION` with your project version, for example `2.1.0`.
 
-2. Create a cluster in CycleCloud. Select **PBS Version** under
+3. Create a cluster in CycleCloud. Select **PBS Version** under
    **Advanced Settings / Software**, and enter **License Server** under
    **Required Settings** as `port@hostname`, for example `6200@licenses.example.com`.
    The license server must be reachable from the PBS server.
